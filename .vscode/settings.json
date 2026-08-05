@@ -1,0 +1,18 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+	"files.eol": "\n",
+	"debug.openDebug": "neverOpen",
+	"python.linting.enabled": false,
+	"python.languageServer": "None",
+
+	// Manda APENAS arquivos .py para o EV3.
+	// Sem isto, a extensao envia tudo que estiver na pasta do projeto -
+	// inclusive a propria pasta .vscode, imagens, anotacoes, etc.
+	"ev3devBrowser.download.include": "**/*.py",
+
+	// Rede de seguranca: ignora arquivos ocultos, cache e documentacao.
+	"ev3devBrowser.download.exclude": "{**/.*,**/__pycache__/**,LICENSE,README.md}",
+
+	// Nao pergunta confirmacao ao apagar arquivo no EV3 (economiza cliques)
+	"ev3devBrowser.confirmDelete": false
+}

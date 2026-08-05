@@ -1,0 +1,28 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			// Roda o arquivo que estiver ABERTO no editor no momento do F5.
+			// ${relativeFile} = caminho do arquivo atual dentro do projeto.
+			// Assim nao precisa editar este arquivo toda vez que trocar
+			// de programa (movimento.py, linha.py, carrinho.py...).
+			"name": "Rodar arquivo aberto",
+			"type": "ev3devBrowser",
+			"request": "launch",
+			"program": "/home/robot/${workspaceFolderBasename}/${relativeFile}",
+			"interactiveTerminal": false
+		},
+		{
+			// Configuracao fixa, para o programa final da competicao.
+			// Troque 'main.py' pelo nome do arquivo da missao.
+			"name": "Rodar main.py",
+			"type": "ev3devBrowser",
+			"request": "launch",
+			"program": "/home/robot/${workspaceFolderBasename}/main.py",
+			"interactiveTerminal": false
+		}
+	]
+}
