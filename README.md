@@ -1,6 +1,6 @@
 # Robô WRO — EV3 + Pybricks
 
-Código de competição da equipe para a World Robot Olympiad.
+Código de competição da equipe FrancoDroid para a World Robot Olympiad.
 Plataforma: **Pybricks MicroPython v2.0 no LEGO EV3**.
 
 > Este README serve tanto para novos integrantes quanto para agentes de IA
