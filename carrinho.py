@@ -39,7 +39,7 @@ PASSO_CORREIA = 2.0
 MM_POR_GRAU   = (DENTES_POLIA * PASSO_CORREIA) / 360.0
 
 # Curso util, do batente recolhido ate o limite. MEDIR COM REGUA.
-CURSO_MM = 150.0
+CURSO_MM = 131
 
 V_CARRINHO = 400.0     # graus/s do motor
 
@@ -122,9 +122,9 @@ def recolher(velocidade=V_CARRINHO, esperar=True):
     mover_carrinho(0, velocidade=velocidade, esperar=esperar)
 
 
-def estender(esperar=True):
+def estender(velocidade=V_CARRINHO, esperar=True):
     """Leva o carrinho ate o fim do curso."""
-    mover_carrinho(CURSO_MM, esperar=esperar)
+    mover_carrinho(CURSO_MM, velocidade=velocidade, esperar=esperar)
 
 
 # =============================================================================

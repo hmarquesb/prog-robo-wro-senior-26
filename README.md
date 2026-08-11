@@ -1,6 +1,6 @@
 # Robô WRO — EV3 + Pybricks
 
-Código de competição da equipe FrancoDroid para a World Robot Olympiad.
+Código de competição da equipe para a World Robot Olympiad.
 Plataforma: **Pybricks MicroPython v2.0 no LEGO EV3**.
 
 > Este README serve tanto para novos integrantes quanto para agentes de IA
@@ -38,7 +38,14 @@ setup.py       Hardware. Único lugar onde Motor() e ColorSensor() são criados.
 movimento.py   andar, girar_eixo, girar_arco, girar_pivo
 linha.py       seguir_linha, alinhar, procurar_linha, calibração
 carrinho.py    carrinho da correia GT2
-prog1.py       programa da missão (o que roda de fato)
+garra.py       garra do motor_D (zerar, descer, arremessar)
+
+leitura_blocos.py   varre o mosaico → lista de 12 cores
+pegar_blocos.py     retira os blocos do tapete e guarda nas 3 colunas
+entregar_blocos.py  devolve os blocos ao mosaico, de costas (fileira 4 → 1)
+parte1.py           largada → posição de leitura
+parte2.py           mosaico → tapete de blocos
+prog1.py            programa da missão (o que roda de fato)
 
 aprender_pybricks.py        8 lições de Pybricks, material de estudo
 adaptador_horn_lego.scad    peça 3D: horn do servo MG90S → eixo LEGO
@@ -72,7 +79,7 @@ c.zerar_carrinho(forca=40)
 m.andar(300)
 m.girar_eixo(90)
 m.girar_arco(200, 45)
-m.girar_pivo(motor_C, 90)
+m.girar_pivo(motor_C, 90)   # a roda DIREITA gira; o pivô é a esquerda
 
 lin.seguir_linha(tempo_ms=6000, parar_se=[lin.cruzamento()], ignorar_mm=40)
 lin.alinhar()
@@ -91,7 +98,12 @@ lin.alinhar()
 ### Convenção de sinal
 
 **Ângulo positivo = direita**, nas quatro funções de movimento, independente
-de qual roda está parada no `girar_pivo`.
+de qual roda gira no `girar_pivo`.
+
+O argumento do `girar_pivo` é a roda que **se mexe** — a outra é que fica
+travada servindo de eixo. O sentido em que ela gira sai do ângulo, não da
+escolha: para virar à direita, a roda esquerda vai para a frente e a direita
+vai para trás. Escolher a roda só decide **sobre qual quina** o robô pivota.
 
 ---
 
@@ -146,6 +158,32 @@ oscilando.
 O `alinhar()` é o único que **não** sincroniza as rodas, e isso é proposital:
 o objetivo é desacoplar as duas para que cada uma ache a linha sozinha.
 
+**Duas travas no PD do `_mover()` — não remover.** Sem elas o próprio PD faz
+o robô girar uma roda só em vez de andar reto:
+
+| Trava | O que impede |
+|---|---|
+| `CORRECAO_MAX_FRAC` | a correção passar da velocidade do perfil e **zerar** a roda atrasada |
+| parada pelo `min` das duas rodas | o loop terminar com uma roda devendo |
+
+O caso ruim é a **largada**: ali o perfil ainda está em `v_min`, o valor mais
+baixo do trajeto, e é justo o instante em que as duas rodas vencem o atrito
+estático em momentos diferentes. O erro pula alguns graus de uma vez, o termo
+D multiplica esse pulo por `KD` e a correção passa de `v_min` fácil. Sem teto,
+`v_esq = v - correcao` vira zero ou negativo. E, com uma roda parada, a
+**média** de progresso só chega em 1.0 quando a outra anda o **dobro** do
+alvo — o robô fica girando esse tempo todo.
+
+O `TESTE 0` do `movimento.py` mede as duas coisas: imprime quantos graus cada
+roda andou num `andar(500)`. Iguais ao alvo → o PD está bem e robô torto é
+problema mecânico. Uma perto de zero → a correção está zerando aquela roda.
+
+O termo D é normalizado para um ciclo de `DT` ms. Sem isso o `KD` efetivo
+varia com o tempo que o ciclo levou (leitura de encoder e escrita de motor
+passam pelo sistema de arquivos), e o mesmo número vale coisas diferentes em
+momentos diferentes do programa. A escala do `KD` não mudou — todos os valores
+já calibrados continuam valendo.
+
 ### 6. Sempre usar `tempo_ms` como rede de segurança
 
 Mesmo quando já existe outro critério. Sem ele, um sensor que nunca vê preto
@@ -158,6 +196,12 @@ sintonia. Já foi testado e não funcionou.
 
 Mover o carrinho junto com **outro mecanismo**, robô parado, é tranquilo —
 use `esperar=False` nos dois e espere depois.
+
+A proibição é **mover durante a andada**, não andar com ele para fora. Desde
+que o carrinho virou peça impressa em 3D (era LEGO), ele ficou leve o
+bastante para o robô andar com ele **parado onde estiver, inclusive todo
+estendido** — é o que o `pegar_blocos.py` faz entre uma coluna e outra, em vez
+de recolher e estender de novo a cada bloco.
 
 ### 8. Parâmetros explícitos, sem `**kwargs`
 

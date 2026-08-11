@@ -1,0 +1,9 @@
+from setup import sensor_esq, sensor_dir, motor_A, motor_B, motor_C, motor_D, ev3, wait
+import setup as s
+import movimento as m
+import linha as lin
+import carrinho as c
+import garra as g
+
+if __name__ == "__main__":
+    m.andar(110, v_max=300, v_min=100, acel=800, desacel=1500, kp=2.5, kd=3.5)
