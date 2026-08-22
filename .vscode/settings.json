@@ -2,6 +2,12 @@
 {
 	"files.eol": "\n",
 	"debug.openDebug": "neverOpen",
+
+	// Abre o Debug Console TODA vez que o F5 roda. E nele que sai o
+	// traceback do erro - sem isto, um programa que quebra no import
+	// aparece so como "error code 1", sem dizer onde nem por que.
+	"debug.internalConsoleOptions": "openOnSessionStart",
+
 	"python.linting.enabled": false,
 	"python.languageServer": "None",
 

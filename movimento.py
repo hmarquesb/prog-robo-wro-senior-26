@@ -3,7 +3,8 @@
 movimento.py - Movimentacao do robo
 ===================================
 
-Hardware vem do setup.py. Aqui ficam so os movimentos.
+Hardware vem do setup.py, numeros vem do constantes.py. Aqui ficam so os
+movimentos.
 
 Quatro funcoes, todas com aceleracao/desaceleracao suave e PD:
 
@@ -33,75 +34,25 @@ devem ser removidas (TESTE 0 no fim do arquivo mede as duas):
   PARADA PELAS DUAS RODAS - o loop so termina quando a roda que esta ATRAS
   chega, nao quando a media chega. Pela media, uma roda parada faz a outra
   andar o dobro do alvo antes de o movimento "acabar".
+
+Os parametros de cada funcao ja vem com os defaults do constantes.py
+(secao 3). Um trecho que precise de outro comportamento passa os seus
+proprios numeros na chamada, ou monta um dicionario no arquivo dele:
+
+    m.andar(300)                        # defaults
+    m.andar(300, v_max=800, kp=2.5)     # ajuste so desta chamada
+    m.andar(300, **ANDAR_MOSAICO)       # dict do proprio arquivo
 """
 
 import math
 from pybricks.tools import wait, StopWatch
 
-from setup import ev3, motor_A, motor_B, motor_C, motor_D
+import constantes as cte
+from setup import ev3, motor_B, motor_C
 
 
 # =============================================================================
-# 1. PARAMETROS FISICOS  (medidos no robo)
-# =============================================================================
-
-DIAMETRO_RODA = 62.4      # mm
-ENTRE_EIXOS   = 185.0     # mm - distancia entre o centro das duas rodas
-
-# mm que o robo anda para cada 1 grau de rotacao da roda
-MM_POR_GRAU = math.pi * DIAMETRO_RODA / 360.0
-
-
-# =============================================================================
-# 2. PARAMETROS DE CONTROLE
-# =============================================================================
-
-# --- Velocidades, em graus/segundo da roda ---
-V_MAX = 700.0     # velocidade de cruzeiro
-V_MIN = 60.0      # velocidade minima. Se for 0, o robo "morre" antes de
-                  # chegar. Se for alta demais, ele derrapa ao parar.
-
-# --- Aceleracao, em graus/s^2 ---
-# ALTO  = arranque/parada brusca (rapido, mas derrapa e perde precisao)
-# BAIXO = suave (preciso, mas gasta mais tempo)
-ACEL    = 900.0
-DESACEL = 1200.0  # costuma ser MAIOR que ACEL: freia mais rapido do que
-                  # arranca, porque a precisao do ponto de parada importa mais
-
-# --- Ganhos do PD de sincronismo entre as rodas ---
-KP = 2.5   # corrige o erro atual. Aumente se o robo sai torto.
-KD = 8.0   # amortece. Aumente se o robo fica oscilando / tremendo.
-
-# Teto da correcao do PD, como FRACAO da velocidade que o perfil pediu
-# para a roda naquele instante.
-#
-# Sem esse teto o PD tem autoridade total sobre a velocidade: a correcao
-# entra como  v_esq = v - correcao , e nada impede que `correcao` fique
-# MAIOR que `v`. Quando isso acontece a roda atrasada e mandada para zero
-# (ou para tras) e so a outra anda - o robo GIRA em vez de andar reto.
-#
-# E facil de acontecer no COMECO de qualquer movimento: ali o perfil ainda
-# esta em v_min, o valor mais baixo do trajeto inteiro, e e exatamente o
-# instante em que as duas rodas vencem o atrito estatico em momentos
-# diferentes. O erro pula alguns graus de uma vez, o termo D multiplica
-# esse pulo por KD e a correcao passa de v_min sem esforco.
-#
-# Com o teto, a roda mais lenta nunca cai abaixo de (1 - fracao) da
-# velocidade dela e nenhuma das duas troca de sentido: o PD continua
-# corrigindo, mas por diferenca de velocidade, nao parando roda.
-#
-# 0.5 = a diferenca entre as rodas nunca passa de metade da velocidade.
-# Sobra autoridade de giro de sobra. Abaixe para 0.3 se ainda arrancar
-# torto; suba com cuidado - perto de 1.0 o teto deixa de proteger.
-CORRECAO_MAX_FRAC = 0.5
-
-V_LIMITE = 900.0   # teto absoluto de velocidade enviada aos motores
-DT = 5             # ms por ciclo do loop de controle
-TIMEOUT = 15000    # ms - trava de seguranca padrao
-
-
-# =============================================================================
-# 3. NUCLEO DE CONTROLE
+# 1. NUCLEO DE CONTROLE
 # =============================================================================
 
 def _sinal(x):
@@ -114,6 +65,10 @@ def _sinal(x):
 
 def _limitar(valor, minimo, maximo):
     return max(minimo, min(maximo, valor))
+
+
+def _mm_para_graus(mm):
+    return mm / cte.MM_POR_GRAU
 
 
 def _perfil_velocidade(percorrido, total, v_max, v_min, acel, desacel):
@@ -131,9 +86,11 @@ def _perfil_velocidade(percorrido, total, v_max, v_min, acel, desacel):
 
 
 def _mover(alvo_esq, alvo_dir,
-           v_max=V_MAX, v_min=V_MIN, acel=ACEL, desacel=DESACEL,
-           kp=KP, kd=KD, correcao_max_frac=CORRECAO_MAX_FRAC,
-           parar_no_fim=True, segurar=False, timeout=TIMEOUT):
+           v_max=cte.V_MAX, v_min=cte.V_MIN,
+           acel=cte.ACEL, desacel=cte.DESACEL,
+           kp=cte.KP, kd=cte.KD,
+           correcao_max_frac=cte.CORRECAO_MAX_FRAC,
+           parar_no_fim=True, segurar=False, timeout=cte.TIMEOUT_MOVER_MS):
     """
     Nucleo generico. Recebe quantos GRAUS cada roda deve girar e executa
     com perfil de velocidade + PD de sincronismo.
@@ -235,22 +192,21 @@ def _mover(alvo_esq, alvo_dir,
         #
         # Dividir por dt_ms e multiplicar por DT mantem o KD na MESMA
         # escala de antes - num ciclo que realmente leve DT ms o valor nao
-        # muda -, entao todos os kd ja calibrados (parte1, parte2,
-        # leitura_blocos, pegar_blocos) continuam valendo.
+        # muda -, entao todos os kd ja calibrados continuam valendo.
         dt_ms = relogio_ciclo.time()
         relogio_ciclo.reset()
         if dt_ms < 1:
-            dt_ms = DT
-        derivada = (erro - erro_ant) * DT / dt_ms
+            dt_ms = cte.DT
+        derivada = (erro - erro_ant) * cte.DT / dt_ms
         erro_ant = erro
 
         correcao = kp * erro + kd * derivada
 
-        # TETO DA CORRECAO (ver CORRECAO_MAX_FRAC): sem ele a correcao pode
-        # ficar maior que a propria velocidade do perfil e ZERAR a roda
-        # atrasada - o robo gira em vez de andar. Acontecia na largada, com
-        # o perfil ainda em v_min e o termo D reagindo ao atrito estatico
-        # das duas rodas cedendo em instantes diferentes.
+        # TETO DA CORRECAO (ver cte.CORRECAO_MAX_FRAC): sem ele a correcao
+        # pode ficar maior que a propria velocidade do perfil e ZERAR a
+        # roda atrasada - o robo gira em vez de andar. Acontecia na
+        # largada, com o perfil ainda em v_min e o termo D reagindo ao
+        # atrito estatico das duas rodas cedendo em instantes diferentes.
         limite_correcao = correcao_max_frac * v * frac_min
         correcao = _limitar(correcao, -limite_correcao, limite_correcao)
 
@@ -262,39 +218,42 @@ def _mover(alvo_esq, alvo_dir,
 
         # A roda travada nao recebe comando: fica em hold() o tempo todo
         if alvo_esq != 0:
-            motor_B.run(_limitar(v_esq, -V_LIMITE, V_LIMITE))
+            motor_B.run(_limitar(v_esq, -cte.V_LIMITE, cte.V_LIMITE))
         if alvo_dir != 0:
-            motor_C.run(_limitar(v_dir, -V_LIMITE, V_LIMITE))
+            motor_C.run(_limitar(v_dir, -cte.V_LIMITE, cte.V_LIMITE))
 
-        wait(DT)
+        wait(cte.DT)
 
     if parar_no_fim:
-        if segurar:
-            motor_B.hold()
-            motor_C.hold()
-        else:
-            motor_B.brake()
-            motor_C.brake()
+        parar(segurar)
 
 
 # =============================================================================
-# 4. FUNCOES DE MOVIMENTO
+# 2. FUNCOES DE MOVIMENTO
 # =============================================================================
 
-def _mm_para_graus(mm):
-    return mm / MM_POR_GRAU
+def parar(segurar=False):
+    """Para os dois motores de tracao imediatamente."""
+    if segurar:
+        motor_B.hold()
+        motor_C.hold()
+    else:
+        motor_B.brake()
+        motor_C.brake()
 
 
 def andar(distancia_mm,
-          v_max=V_MAX, v_min=V_MIN, acel=ACEL, desacel=DESACEL,
-          kp=KP, kd=KD, correcao_max_frac=CORRECAO_MAX_FRAC,
-          parar_no_fim=True, segurar=False, timeout=TIMEOUT):
+          v_max=cte.V_MAX, v_min=cte.V_MIN,
+          acel=cte.ACEL, desacel=cte.DESACEL,
+          kp=cte.KP, kd=cte.KD,
+          correcao_max_frac=cte.CORRECAO_MAX_FRAC,
+          parar_no_fim=True, segurar=False, timeout=cte.TIMEOUT_MOVER_MS):
     """
     Anda em linha reta. Positivo = frente, negativo = re.
 
         andar(500)                     # meio metro pra frente
         andar(-200)                    # 20 cm de re
-        andar(300, v_max=300)          # devagar, pra manobra fina
+        andar(300, v_max=300, kp=2.5)  # manobra fina
         andar(400, parar_no_fim=False) # emenda com o proximo movimento
     """
     graus = _mm_para_graus(distancia_mm)
@@ -306,9 +265,11 @@ def andar(distancia_mm,
 
 
 def girar_eixo(angulo_graus,
-               v_max=V_MAX, v_min=V_MIN, acel=ACEL, desacel=DESACEL,
-               kp=KP, kd=KD, correcao_max_frac=CORRECAO_MAX_FRAC,
-               parar_no_fim=True, segurar=False, timeout=TIMEOUT):
+               v_max=cte.V_MAX, v_min=cte.V_MIN,
+               acel=cte.ACEL, desacel=cte.DESACEL,
+               kp=cte.KP, kd=cte.KD,
+               correcao_max_frac=cte.CORRECAO_MAX_FRAC,
+               parar_no_fim=True, segurar=False, timeout=cte.TIMEOUT_MOVER_MS):
     """
     Gira no proprio eixo: as rodas giram em sentidos opostos e o centro
     do robo fica parado.
@@ -317,7 +278,7 @@ def girar_eixo(angulo_graus,
         girar_eixo(-180)   # meia volta pra esquerda
     """
     # Cada roda percorre o arco de um circulo de raio = metade do entre-eixos
-    arco_mm = (ENTRE_EIXOS / 2.0) * math.radians(angulo_graus)
+    arco_mm = (cte.ENTRE_EIXOS / 2.0) * math.radians(angulo_graus)
     graus = _mm_para_graus(arco_mm)
     _mover(graus, -graus,
            v_max=v_max, v_min=v_min, acel=acel, desacel=desacel,
@@ -327,9 +288,11 @@ def girar_eixo(angulo_graus,
 
 
 def girar_arco(raio_mm, angulo_graus, re=False,
-               v_max=V_MAX, v_min=V_MIN, acel=ACEL, desacel=DESACEL,
-               kp=KP, kd=KD, correcao_max_frac=CORRECAO_MAX_FRAC,
-               parar_no_fim=True, segurar=False, timeout=TIMEOUT):
+               v_max=cte.V_MAX, v_min=cte.V_MIN,
+               acel=cte.ACEL, desacel=cte.DESACEL,
+               kp=cte.KP, kd=cte.KD,
+               correcao_max_frac=cte.CORRECAO_MAX_FRAC,
+               parar_no_fim=True, segurar=False, timeout=cte.TIMEOUT_MOVER_MS):
     """
     Gira descrevendo um arco. O raio e medido do centro do circulo ate o
     CENTRO DO ROBO (o meio do eixo das rodas).
@@ -347,8 +310,8 @@ def girar_arco(raio_mm, angulo_graus, re=False,
     sentido = 1.0 if angulo_graus >= 0 else -1.0
     ang_rad = math.radians(abs(angulo_graus))
 
-    arco_externo = (raio_mm + ENTRE_EIXOS / 2.0) * ang_rad
-    arco_interno = (raio_mm - ENTRE_EIXOS / 2.0) * ang_rad
+    arco_externo = (raio_mm + cte.ENTRE_EIXOS / 2.0) * ang_rad
+    arco_interno = (raio_mm - cte.ENTRE_EIXOS / 2.0) * ang_rad
 
     if sentido > 0:      # direita: roda esquerda e a externa
         mm_esq, mm_dir = arco_externo, arco_interno
@@ -366,9 +329,11 @@ def girar_arco(raio_mm, angulo_graus, re=False,
 
 
 def girar_pivo(motor_girando, angulo_graus,
-               *, v_max=V_MAX, v_min=V_MIN, acel=ACEL, desacel=DESACEL,
-               kp=KP, kd=KD, correcao_max_frac=CORRECAO_MAX_FRAC,
-               parar_no_fim=True, segurar=False, timeout=TIMEOUT):
+               v_max=cte.V_MAX, v_min=cte.V_MIN,
+               acel=cte.ACEL, desacel=cte.DESACEL,
+               kp=cte.KP, kd=cte.KD,
+               correcao_max_frac=cte.CORRECAO_MAX_FRAC,
+               parar_no_fim=True, segurar=False, timeout=cte.TIMEOUT_MOVER_MS):
     """
     Gira pivotando sobre UMA das rodas: a roda escolhida descreve todo o
     arco e a OUTRA fica travada, servindo de eixo.
@@ -396,12 +361,12 @@ def girar_pivo(motor_girando, angulo_graus,
         girar_pivo(motor_B, 90)    # gira a roda esquerda (para a frente),
                                    # pivotando na direita: 90 a direita
     """
-    arco_mm = ENTRE_EIXOS * math.radians(angulo_graus)
+    arco_mm = cte.ENTRE_EIXOS * math.radians(angulo_graus)
 
     if motor_girando is motor_C:
         # So a roda DIREITA se mexe; pivo na esquerda. Para virar a DIREITA
         # ela precisa andar para TRAS.
-        alvo_esq, alvo_dir = 0, _mm_para_graus(-arco_mm)
+        alvo_esq, alvo_dir = 0, _mm_para_graus(-arco_mm) 
 
     elif motor_girando is motor_B:
         # So a roda ESQUERDA se mexe; pivo na direita. Para virar a DIREITA
@@ -418,111 +383,147 @@ def girar_pivo(motor_girando, angulo_graus,
            parar_no_fim=parar_no_fim, segurar=segurar,
            timeout=timeout)
 
+def andar_por_tempo(tempo_ms, velocidade=cte.V_MAX, frente=True,
+                    segurar=False):
+    """
+    Anda reto por um TEMPO fixo, sem alvo de distancia.
 
-def parar(segurar=False):
-    """Para os dois motores de tracao imediatamente."""
-    if segurar:
-        motor_B.hold()
-        motor_C.hold()
-    else:
-        motor_B.brake()
-        motor_C.brake()
+    tempo_ms   : quanto tempo andar, em milissegundos
+    velocidade : graus/s. O sinal tambem conta - com frente=True e uma
+                 velocidade negativa o robo anda de re.
+    frente     : True = frente, False = re
+    segurar    : True trava as rodas no fim, False so freia
+
+    SEM PD E SEM RAMPA: as duas rodas recebem a mesma velocidade e
+    pronto. Nao ha correcao de sincronismo, entao em percursos longos ele
+    sai torto - o certo para a prova e o andar(), que fecha um alvo.
+
+    Serve para o caso em que a distancia NAO e o que importa: empurrar
+    contra uma parede, vencer um obstaculo, dar um encosto de ajuste.
+    """
+    v = (1 if frente else -1) * velocidade
+
+    motor_B.run(v)
+    motor_C.run(v)
+    wait(tempo_ms)
+    parar(segurar)
 
 
 # =============================================================================
-# 5. TESTE / CALIBRACAO
+# 3. TESTE / CALIBRACAO
 # =============================================================================
-# Ordem de calibracao:
-#   TESTE 0 -> diagnostico do PD      (as duas rodas andaram o mesmo?)
-#   TESTE 1 -> ajusta DIAMETRO_RODA   (distancia percorrida)
-#   TESTE 2 -> ajusta ENTRE_EIXOS     (angulo do giro)
-#   TESTE 3 -> ajusta KP e KD         (robo sair reto e estavel)
-#   TESTE 4 -> ajusta ACEL/DESACEL    (velocidade sem derrapar)
+# Mude o numero de TESTE la embaixo e rode este arquivo com F5.
+# Ordem de calibracao (ver README, secao "Calibracao"):
+#
+#   0 -> diagnostico do PD      (as duas rodas andaram o mesmo?)
+#   1 -> ajusta DIAMETRO_RODA   (distancia percorrida)
+#   2 -> ajusta ENTRE_EIXOS     (angulo do giro)
+#   3 -> confere arco e pivo
+#   4 -> sequencia encadeada, sem freada entre os movimentos
+#
+# Todos os numeros ficam no constantes.py - nada para editar aqui.
 
-if __name__ == "__main__":
+def _teste_0_pd():
+    """
+    O PD esta sincronizando as rodas?
 
-    #ev3.speaker.beep()
-    #wait(500)
+    Rode ANTES de qualquer outro teste, e sempre que o robo sair torto ou
+    girar uma roda so. Nao precisa de regua: o _mover zera os dois
+    encoders na largada e nunca mais mexe neles, entao o angulo lido aqui
+    e exatamente o que cada roda andou naquele movimento.
 
-    # ---- TESTE 0: o PD esta sincronizando as rodas? ------------------------
-    # Rode ANTES de qualquer outro teste, e sempre que o robo sair torto ou
-    # girar uma roda so. Nao precisa de regua: o _mover zera os dois
-    # encoders na largada e nunca mais mexe neles, entao o angulo lido aqui
-    # e exatamente o que cada roda andou naquele movimento.
-    #
-    # COMO LER:
-    #   esq == dir == alvo  -> o PD esta fazendo o trabalho dele. Se mesmo
-    #                          assim o robo sai torto, o problema e MECANICO
-    #                          (roda bamba, pneu de diametro diferente,
-    #                          derrapagem) - nao adianta mexer em KP/KD.
-    #   esq != dir          -> sobrou erro de sincronismo. A diferenca em
-    #                          graus vira erro de direcao:
-    #                          angulo = diferenca * MM_POR_GRAU / ENTRE_EIXOS
-    #   uma delas perto de 0 -> a correcao esta zerando aquela roda. Abaixe
-    #                          CORRECAO_MAX_FRAC (0.5 -> 0.3) e/ou KD.
-    #
-    # O ciclo real tambem sai impresso. Ele NAO e DT: e DT mais o custo de
-    # ler os encoders e escrever nos motores. So esta aqui para conferir que
-    # nao explodiu (uns 3x DT ja e muito) - o KD nao depende mais dele.
-    alvo_graus = _mm_para_graus(500)
+    COMO LER:
+      esq == dir == alvo   -> o PD esta fazendo o trabalho dele. Se mesmo
+                              assim o robo sai torto, o problema e
+                              MECANICO (roda bamba, pneu de diametro
+                              diferente, derrapagem) - nao adianta mexer
+                              em KP/KD.
+      esq != dir           -> sobrou erro de sincronismo. A diferenca em
+                              graus vira erro de direcao:
+                              angulo = diferenca * MM_POR_GRAU / ENTRE_EIXOS
+      uma delas perto de 0 -> a correcao esta zerando aquela roda. Abaixe
+                              CORRECAO_MAX_FRAC (0.5 -> 0.3) e/ou KD.
+
+    O ciclo real tambem sai impresso. Ele NAO e DT: e DT mais o custo de
+    ler os encoders e escrever nos motores. So esta aqui para conferir que
+    nao explodiu (uns 3x DT ja e muito) - o KD nao depende mais dele.
+    """
     andar(500)
     print("TESTE 0 - andar(500)")
-    print("  alvo :", alvo_graus, "graus por roda")
+    print("  alvo :", _mm_para_graus(500), "graus por roda")
     print("  esq  :", motor_B.angle())
     print("  dir  :", motor_C.angle())
     print("  dif  :", motor_B.angle() - motor_C.angle(), "graus")
     wait(1000)
 
-    relogio_teste = StopWatch()
+    relogio = StopWatch()
     for _ in range(100):
         motor_B.angle()
         motor_C.angle()
         motor_B.run(0)
         motor_C.run(0)
-        wait(DT)
-    print("  ciclo real:", relogio_teste.time() / 100.0, "ms   (DT =", DT, ")")
+        wait(cte.DT)
+    print("  ciclo real:", relogio.time() / 100.0, "ms   (DT =", cte.DT, ")")
     parar()
     wait(1000)
     andar(-500)
+
+
+def _teste_1_distancia():
+    """
+    Marque o chao, rode, meca com regua.
+      Andou MENOS que 500 mm -> DIMINUA  DIAMETRO_RODA
+      Andou MAIS  que 500 mm -> AUMENTE  DIAMETRO_RODA
+    """
+    andar(500)
     wait(1000)
+    andar(-500)
 
-    # ---- TESTE 1: distancia -------------------------------------------------
-    # Marque o chao, rode, meca com regua.
-    #   Andou MENOS que 500 mm -> DIMINUA  DIAMETRO_RODA
-    #   Andou MAIS  que 500 mm -> AUMENTE  DIAMETRO_RODA
-    #andar(500)
-    #wait(1000)
-    #andar(-500)
-    #wait(1000)
 
-    # ---- TESTE 2: giro no eixo ---------------------------------------------
-    # 4 giros de 90 = uma volta completa. O robo tem que voltar apontando
-    # exatamente para onde comecou.
-    #   Girou de MENOS -> AUMENTE  ENTRE_EIXOS
-    #   Girou de MAIS  -> DIMINUA  ENTRE_EIXOS
-    # for _ in range(4):
-    #     girar_eixo(90)
-    #     wait(500)
+def _teste_2_giro():
+    """
+    4 giros de 90 = uma volta completa. O robo tem que voltar apontando
+    exatamente para onde comecou.
+      Girou de MENOS -> AUMENTE  ENTRE_EIXOS
+      Girou de MAIS  -> DIMINUA  ENTRE_EIXOS
+    """
+    for _ in range(4):
+        girar_eixo(90)
+        wait(500)
 
-    # ---- TESTE 3: arco e pivo ----------------------------------------------
-    # girar_arco(300, 90)
-    # wait(1000)
-    # girar_arco(300, -90)
-    # wait(1000)
-    #
-    # O argumento e a roda que SE MEXE, entao nas duas linhas abaixo quem
-    # gira e a direita e o pivo e a ESQUERDA. Marque no chao onde esta a
-    # roda parada: ela nao pode sair do lugar. Se escorregar, o problema e
-    # mecanico (peso mal distribuido, pouca aderencia), nao de codigo.
-    # girar_pivo(motor_C, 90)
-    # wait(1000)
-    # girar_pivo(motor_C, -90)
 
-    # ---- TESTE 4: sequencia encadeada --------------------------------------
-    # parar_no_fim=False emenda movimentos sem freada entre eles: mais
-    # rapido, mas perde um pouco de precisao na transicao.
-    # andar(400, parar_no_fim=False)
-    # girar_arco(200, 90, parar_no_fim=False)
-    # andar(300)
+def _teste_3_arco_pivo():
+    """
+    O argumento do girar_pivo e a roda que SE MEXE, entao aqui quem gira e
+    a direita e o pivo e a ESQUERDA. Marque no chao onde esta a roda
+    parada: ela nao pode sair do lugar. Se escorregar, o problema e
+    mecanico (peso mal distribuido, pouca aderencia), nao de codigo.
+    """
+    girar_arco(300, 90)
+    wait(1000)
+    girar_arco(300, -90)
+    wait(1000)
+    girar_pivo(motor_C, 90)
+    wait(1000)
+    girar_pivo(motor_C, -90)
+
+
+def _teste_4_encadeado():
+    """
+    parar_no_fim=False emenda movimentos sem freada entre eles: mais
+    rapido, mas perde um pouco de precisao na transicao.
+    """
+    andar(400, parar_no_fim=False)
+    girar_arco(200, 90, parar_no_fim=False)
+    andar(300)
+
+
+if __name__ == "__main__":
+
+    TESTE = 0
+
+    testes = (_teste_0_pd, _teste_1_distancia, _teste_2_giro,
+              _teste_3_arco_pivo, _teste_4_encadeado)
+    testes[TESTE]()
 
     ev3.speaker.beep()

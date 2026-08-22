@@ -1,0 +1,314 @@
+#!/usr/bin/env pybricks-micropython
+"""
+constantes.py - So o que e COMPARTILHADO entre arquivos
+=======================================================
+
+Este arquivo NAO e mais o deposito de todos os numeros do projeto. Ele
+guarda so o que varios arquivos precisam enxergar igual:
+
+    geometria do chassi     porque movimento.py e linha.py fazem a mesma
+                            conta e um erro so nos dois seria pior
+    limites dos motores     aplicados no setup.py, valem para o robo todo
+    ganhos padrao do PD     valores default das funcoes de movimento e de
+                            linha - o ponto de partida de qualquer trecho
+    protocolo do servo      tem de bater byte a byte com o Arduino
+    mapa do tapete/mosaico  pegar_blocos e entregar_blocos precisam ler a
+                            MESMA tabela, senao os blocos saem trocados
+
+O QUE **NAO** MORA MAIS AQUI, e de proposito:
+
+    velocidade de um trecho especifico    -> no arquivo do trecho
+    graus de um movimento especifico      -> na linha que faz o movimento
+    distancia usada uma vez so            -> onde ela e usada
+    tempo de uma rotina                   -> na rotina
+    numero que voces mexem testando       -> onde da para ver o efeito
+
+A regra pratica: se o numero so faz sentido dentro de UM arquivo, ele
+mora naquele arquivo, ao lado da chamada que o usa. Trazer para ca custa
+uma ida e volta entre dois arquivos toda vez que voces querem ajustar um
+valor no robo.
+
+Este arquivo nao importa setup.py e NAO CRIA HARDWARE NENHUM - so
+numeros. Por isso qualquer modulo pode importa-lo sem risco de import
+circular, e rodar F5 nele nao mexe no robo.
+
+INDICE
+
+     1. CHASSI    geometria das rodas
+     2. MOTORES   limites, teto de velocidade, ciclo de controle
+     3. MOVIMENTO velocidade, aceleracao e PD padrao do andar/girar
+     4. LINHA     seguidor, alinhamento e calibracao dos sensores
+     5. SERVO     protocolo I2C do seletor de coluna (via Arduino)
+     6. TAPETE    as 8 colunas de blocos e a ordem de retirada
+     7. MOSAICO   quais celulas vao em qual coluna de armazenagem
+     8. TESTE     lista de cores de exemplo
+
+UNIDADES (valem no projeto inteiro)
+
+    velocidade de motor .... graus/segundo   (~200 lento, ~500 medio, ~800 rapido)
+    tempo .................. milissegundos
+    distancia .............. milimetros
+    angulo ................. graus
+    leitura de sensor ...... 0 a 100
+"""
+
+import math
+from pybricks.parameters import Color
+
+
+# =============================================================================
+# 1. CHASSI  (medir com regua no robo - ver "Calibracao" no README)
+# =============================================================================
+
+DIAMETRO_RODA = 62.4      # mm
+ENTRE_EIXOS   = 184.5     # mm - distancia entre o centro das duas rodas
+
+# mm que o robo anda para cada 1 grau de rotacao da roda. Sai das duas
+# medidas acima; nao e um valor para ajustar na mao.
+MM_POR_GRAU = math.pi * DIAMETRO_RODA / 360.0
+
+
+# =============================================================================
+# 2. MOTORES
+# =============================================================================
+
+# (velocidade, aceleracao, atuacao) passados para control.limits() no
+# setup.py. OBRIGATORIO para as rodas: o run() do Pybricks tem um PID
+# proprio com limite interno de aceleracao e, sem afrouxa-lo, mexer em
+# ACEL/DESACEL nao teria efeito nenhum (ver README, regra 5).
+LIMITES_RODA = (1000, 10000, 100)
+
+# O motor_A precisa de aceleracao MUITO mais baixa que as rodas. Sem isso
+# ele passa do alvo e fica corrigindo (avanca, volta um pouco, avanca de
+# novo). Se ainda oscilar, abaixe o 2o valor.
+LIMITES_MOTOR_A = (1000, 2000, 100)
+
+V_LIMITE = 940.0   # teto absoluto de velocidade enviada aos motores
+DT       = 5       # ms por ciclo dos loops de controle
+
+
+# =============================================================================
+# 3. MOVIMENTO  (valores PADRAO de andar, girar_eixo, girar_arco, girar_pivo)
+# =============================================================================
+# Sao os defaults das funcoes do movimento.py - o ponto de partida de um
+# trecho novo. Cada chamada pode passar os seus proprios valores, e as
+# rotinas da prova fazem exatamente isso: o numero que interessa a UM
+# trecho fica escrito naquele trecho.
+
+V_MAX = 700.0     # velocidade de cruzeiro
+V_MIN = 60.0      # velocidade minima. Zero faz o robo "morrer" antes de
+                  # chegar; alta demais faz derrapar ao parar.
+
+ACEL    = 900.0
+DESACEL = 1200.0  # costuma ser MAIOR que ACEL: freia mais rapido do que
+                  # arranca, porque o ponto de parada importa mais
+
+# Ganhos do PD que sincroniza as DUAS RODAS entre si (nao e o da linha).
+KP = 2.8   # corrige o erro atual. Robo sai torto -> aumente.
+KD = 8.0   # amortece. Robo oscila / treme -> aumente.
+
+# Teto da correcao do PD, como fracao da velocidade do perfil naquele
+# instante. Sem ele a correcao pode ficar MAIOR que a propria velocidade
+# e zerar a roda atrasada - o robo gira em vez de andar reto (README,
+# regra 6). Abaixe para 0.3 se ainda arrancar torto.
+CORRECAO_MAX_FRAC = 0.4
+
+TIMEOUT_MOVER_MS = 15000   # trava de seguranca padrao do _mover
+
+
+# =============================================================================
+# 4. LINHA
+# =============================================================================
+
+# --- Calibracao dos sensores, como (preto, branco) ---
+# Cada sensor le valores diferentes no mesmo preto e no mesmo branco. Sem
+# normalizar, o PD da linha nasce com erro constante e o robo anda torto.
+# Estes pares saem do lin.calibrar_varrendo() - refaca a varredura quando
+# a luz do ginasio mudar. O linha.py ja carrega os dois no import; nao ha
+# nada para chamar no comeco do programa.
+CAL_SENSOR_ESQ = (4, 49)
+CAL_SENSOR_DIR = (3, 43)
+
+LIMIAR_PRETO = 25   # leitura normalizada abaixo disso = preto
+
+# --- Seguidor de linha (defaults do seguir_linha) ---
+V_LINHA       = 400.0   # cruzeiro. Comece BAIXO (250) e suba conforme o
+                        # PD ficar estavel.
+V_MIN_LINHA   = 60.0
+ACEL_LINHA    = 900.0
+DESACEL_LINHA = 1200.0
+
+# Ganhos do PD da LINHA (posicao em relacao a fita), diferentes do KP/KD
+# de movimentacao (sincronismo entre rodas) - ver README, regra 6.
+KP_LINHA = 3.0    # robo sai da linha na curva -> aumente
+KD_LINHA = 12.0   # robo serpenteia / oscila   -> aumente
+
+TIMEOUT_LINHA_MS = 20000   # trava de seguranca: nada roda para sempre
+
+# --- Alinhamento (alinhar): PD por roda, sobre a LEITURA do sensor ---
+KP_ALINHA = 6.0    # robo para longe da linha / muito lento -> aumente
+KD_ALINHA = 15.0   # robo ainda passa da linha              -> aumente
+
+V_ALINHA          = 250
+V_MIN_ALINHA      = 40
+TIMEOUT_ALINHA_MS = 4000
+
+# --- Procura de linha (procurar_linha) ---
+V_PROCURA          = 250
+V_MIN_PROCURA      = 60
+ACEL_PROCURA       = 900.0
+KP_PROCURA         = 2.5
+KD_PROCURA         = 8.0
+TIMEOUT_PROCURA_MS = 5000
+
+# --- Calibracao automatica (calibrar_varrendo) ---
+VARREDURA_ANGULO     = 60
+VARREDURA_VELOCIDADE = 120
+
+
+# =============================================================================
+# 5. SERVO SELETOR DAS COLUNAS  (Arduino Nano na porta S1, via I2C)
+# =============================================================================
+# As 3 colunas de armazenagem sao FIXAS no topo do robo. Quem decide em
+# qual delas o bloco arremessado cai e um SERVO montado nelas - nao a
+# forca do arremesso, que e a mesma para os 12 blocos.
+#
+# O servo nao e ligado no EV3: quem o comanda e um Arduino Nano
+# (arduino_servos.ino), e o EV3 conversa com ele por I2C:
+#
+#     ESCRITA : 1 byte de comando (os SERVO_CMD_* abaixo)
+#     LEITURA : 1 byte de status - 1 = ainda movendo, 0 = terminou
+#
+# MORA AQUI, e nao no servos.py, porque estes numeros tem de bater byte a
+# byte com o sketch do Arduino - sao um contrato entre dois programas, e
+# o teste_arduino.py os repete de proposito para rodar na bancada sem o
+# resto do projeto.
+
+# A PORTA (S1) nao mora aqui: porta e hardware, e hardware e setup.py.
+SERVO_ENDERECO = 0x04     # 7 bits dos dois lados, sem deslocar
+
+# Comando por COLUNA DE ARMAZENAGEM (1, 2 ou 3): poe o seletor na boca da
+# coluna pedida. Tem de bater com o switch do arduino_servos.ino.
+#
+# ATENCAO: hoje o sketch so conhece 0x10 (acionar) e 0x11 (repouso). Os
+# comandos das colunas 2 e 3 PRECISAM SER ACRESCENTADOS LA - sem isso eles
+# caem no default e o servo nao se mexe.
+SERVO_CMD_COLUNA_1 = 0x10
+SERVO_CMD_COLUNA_2 = 0x12
+SERVO_CMD_COLUNA_3 = 0x13
+SERVO_CMD_REPOUSO  = 0x11
+
+SERVO_CMD = {
+    1: SERVO_CMD_COLUNA_1,
+    2: SERVO_CMD_COLUNA_2,
+    3: SERVO_CMD_COLUNA_3,
+}
+
+# Rede de seguranca da espera: se em SERVO_TIMEOUT_MS o Arduino nao disser
+# que terminou, o programa desiste, apita e SEGUE. Tem de caber o curso
+# inteiro do servo com folga (o TEMPO_CURSO do sketch e 400 ms).
+SERVO_TIMEOUT_MS = 2000
+
+# Quantas vezes tentar de novo quando o barramento nao responde. A
+# primeira leitura depois de ligar as vezes sai vazia.
+SERVO_TENTATIVAS = 3
+
+
+# =============================================================================
+# 6. TAPETE DE BLOCOS
+# =============================================================================
+
+# --- Distancia (mm) que o robo anda, A PARTIR DA PAREDE, ate ficar
+# alinhado de lado com cada uma das 8 colunas verticais do tapete:
+# [coluna mais proxima do inicio, coluna irma] de cada cor.
+#
+# Sao posicoes ABSOLUTAS, nao "ande mais tanto": errar uma nao desloca as
+# outras sete, e o erro em mm se soma direto ao numero correspondente
+# (positivo se o robo ficou aquem da coluna, negativo se passou).
+#
+# E O PRIMEIRO DA FILA DE CALIBRACAO, antes de profundidade e de
+# arremesso - tudo o mais depende de o robo parar no lugar certo. Rode
+# pegar_blocos.py no TESTE 1. ---
+POSICAO_COLUNA = {
+    Color.WHITE:  [120, 200],
+    Color.GREEN:  [295, 385],
+    Color.BLUE:   [450, 550],
+    Color.YELLOW: [610, 700],
+}
+
+# Mesma ordem fisica do tapete. Existe como tupla (e nao so como as
+# chaves de POSICAO_COLUNA) porque a ordem de iteracao de um dict no
+# MicroPython e arbitraria, e escolher_cor precisa de desempate estavel.
+CORES = (Color.WHITE, Color.GREEN, Color.BLUE, Color.YELLOW)
+
+# --- Ordem em que os 6 blocos de UMA cor saem, como
+# (indice_coluna, indice_profundidade):
+#
+#     indice_coluna       : 0 = coluna mais proxima do inicio, 1 = irma
+#     indice_profundidade : 0 perto, 1 meio, 2 fundo
+#       (as tres profundidades ficam no pegar_blocos.py)
+#
+# Duas decisoes estao escritas aqui, e o resto do programa so le a tabela:
+#
+# 1. DO FUNDO PARA A FRENTE dentro de cada coluna. E o que garante que
+#    nunca haja um bloco ATRAS do que esta sendo arremessado. De quebra,
+#    as tres profundidades saem em ordem DECRESCENTE: o carrinho estende
+#    uma vez ate o fim e depois so RECOLHE, dois passos curtos. Estender
+#    e o movimento caro; recolher e barato.
+#
+# 2. UMA COLUNA DE CADA VEZ, esvaziando a primeira antes de ir para a
+#    irma. Assim e uma andada so por cor, e ela termina na coluna irma,
+#    mais adiante no tapete, ja perto da cor seguinte.
+ORDEM_NA_COR = (
+    (0, 2),   # coluna de perto, bloco do FUNDO - onde o robo ja chegou
+    (0, 1),   # coluna de perto, bloco do meio  - so recolhe o carrinho
+    (0, 0),   # coluna de perto, bloco de perto - idem
+    (1, 2),   # coluna irma,     bloco do FUNDO - ANDA ate a coluna irma
+    (1, 1),   # coluna irma,     bloco do meio  - nao anda mais
+    (1, 0),   # coluna irma,     bloco de perto - termina aqui, adiantado
+)
+BLOCOS_POR_COR = len(ORDEM_NA_COR)
+
+# Ordem em que as COLUNAS DO MOSAICO sao atendidas na retirada: primeira,
+# terceira, meio. Diferente da ordem em que foram lidas e da ordem em que
+# serao entregues.
+ORDEM_RETIRADA = (1, 3, 2)
+
+
+# =============================================================================
+# 7. MOSAICO
+# =============================================================================
+
+# Indices de `leituras` (a lista de 12 cores da varredura) agrupados por
+# coluna do mosaico, em ordem vertical. Reflete o zigue-zague: a coluna 3
+# e lida de baixo pra cima na ida e de cima pra baixo na volta, por isso
+# os indices nao sao sequenciais.
+#
+# MORA AQUI PORQUE SAO DOIS PROGRAMAS: diz ao pegar_blocos em que coluna
+# do robo guardar cada bloco, e ao entregar_blocos de qual coluna tira-lo.
+# Duas copias um dia divergem, e ai os blocos saem em celulas trocadas.
+COLUNAS_MOSAICO = {
+    1: [0, 5, 6, 11],
+    2: [1, 4, 7, 10],
+    3: [2, 3, 8, 9],
+}
+
+
+# =============================================================================
+# 8. DADOS DE TESTE
+# =============================================================================
+
+# Lista de exemplo, para testar a logica de ordem sem depender de uma
+# leitura real do mosaico (rode leitura_blocos.py para obter a de
+# verdade). Usada pelos testes do pegar_blocos.py e do entregar_blocos.py
+# - a mesma nos dois, para dar para acompanhar os dois lado a lado.
+#
+# Este exemplo tem AMARELO 5 vezes. Com BLOCOS_POR_COR = 6 isso NAO
+# aciona a troca de cor do escolher_cor; para testar a substituicao,
+# ponha uma cor 7 vezes ou mais.
+LEITURAS_TESTE = [
+    Color.YELLOW, Color.GREEN, Color.BLUE,
+    Color.YELLOW, Color.GREEN, Color.WHITE,
+    Color.BLUE, Color.YELLOW, Color.GREEN,
+    Color.YELLOW, Color.BLUE, Color.YELLOW,
+]
