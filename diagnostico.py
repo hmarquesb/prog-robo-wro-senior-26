@@ -31,7 +31,7 @@ A ETAPA QUE FALHAR E A RESPOSTA:
                     e derruba TODO programa do projeto, porque todos
                     importam o setup.py
     4 (controle)    erro em movimento / linha / garra / servos
-    5 (missao)      erro em parte1 / leitura_blocos / parte2 /
+    5 (missao)      erro em parte1 / leitura_blocos_parte2 / parte3 /
                     pegar_blocos / entregar_blocos
 
 Passando as 5, o problema nao esta nos imports: esta no que o programa
@@ -107,8 +107,8 @@ except Exception as e:
 # --- 5. rotinas da missao -----------------------------------------------
 try:
     import parte1
-    import leitura_blocos
-    import parte2
+    import leitura_blocos_parte2
+    import parte3
     import pegar_blocos
     import entregar_blocos
     _passou("missao")

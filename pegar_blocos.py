@@ -41,7 +41,7 @@ a garra fica SEMPRE EMBAIXO, pronta para fechar. Quem chama nao precisa
 descer a garra em lugar nenhum.
 
 A UNICA EXCECAO E O PRIMEIRO BLOCO: ali a garra ainda chega EM CIMA (a
-parte2 a entrega assim) e a descida e o zerar_garra - a unica ida ao
+parte3 a entrega assim) e a descida e o zerar_garra - a unica ida ao
 batente da rodada. Ela acontece depois de o carrinho ja ter estendido,
 que e o que o garra.py exige para a garra chegar no batente de baixo sem
 bater na estrutura do robo.
@@ -52,7 +52,7 @@ carrinho estende ate o fundo de uma coluna nova (7 das 8 colunas - a
 primeira ainda pega a garra levantada). Dentro de uma mesma coluna nao ha
 risco: ali o carrinho so RECOLHE, por cima de posicoes ja esvaziadas.
 
-LARGADA (o que a parte2 tem de entregar):
+LARGADA (o que a parte3 tem de entregar):
 
     robo     : de lado para o tapete e ENCOSTADO NA PAREDE. E a posicao 0
                de onde todo o POSICAO_COLUNA foi medido.
@@ -279,11 +279,11 @@ def pegar_blocos(leituras):
     Retira do tapete os blocos na ordem que o mosaico determinou e joga
     cada um para dentro do robo, da propria posicao em que ele foi pego.
 
-    `leituras` : lista de 12 cores devolvida por leitura_blocos.py, na
+    `leituras` : lista de 12 cores devolvida pela leitura (parte 2), na
                  ordem de varredura em zigue-zague (ver COLUNAS_MOSAICO
                  no constantes.py).
 
-    LARGADA ESPERADA (quem entrega e a parte2):
+    LARGADA ESPERADA (quem entrega e a parte3):
 
         robo     : de lado para o tapete, ENCOSTADO NA PAREDE - a
                    posicao 0 de POSICAO_COLUNA
@@ -295,7 +295,7 @@ def pegar_blocos(leituras):
 
     A GARRA E ZERADA UMA VEZ SO, no primeiro bloco, e essa e a unica
     descida que este laco faz por conta propria - porque so ali a garra
-    ainda esta levantada (a parte2 a entrega assim). A zeragem acontece
+    ainda esta levantada (a parte3 a entrega assim). A zeragem acontece
     DEPOIS de o carrinho estender, com o robo parado na coluna, que e o
     que o garra.py exige para ela ter curso livre ate o batente de baixo.
 

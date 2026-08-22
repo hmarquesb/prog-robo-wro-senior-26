@@ -81,9 +81,9 @@ LIMITES_RODA = (1000, 10000, 100)
 # O motor_A precisa de aceleracao MUITO mais baixa que as rodas. Sem isso
 # ele passa do alvo e fica corrigindo (avanca, volta um pouco, avanca de
 # novo). Se ainda oscilar, abaixe o 2o valor.
-LIMITES_MOTOR_A = (1000, 2000, 100)
+LIMITES_MOTOR_A = (1000, 3000, 100)
 
-V_LIMITE = 940.0   # teto absoluto de velocidade enviada aos motores
+V_LIMITE = 1000   # teto absoluto de velocidade enviada aos motores
 DT       = 5       # ms por ciclo dos loops de controle
 
 
@@ -280,17 +280,31 @@ ORDEM_RETIRADA = (1, 3, 2)
 # =============================================================================
 
 # Indices de `leituras` (a lista de 12 cores da varredura) agrupados por
-# coluna do mosaico, em ordem vertical. Reflete o zigue-zague: a coluna 3
-# e lida de baixo pra cima na ida e de cima pra baixo na volta, por isso
-# os indices nao sao sequenciais.
+# coluna do mosaico, EM ORDEM DE FILEIRA (1, 2, 3, 4).
+#
+# Sai direto da ordem da varredura (leitura_blocos_parte2.py), que le uma
+# COLUNA de cada vez, comecando pela DIREITA:
+#
+#     indice :  0  1  2  3 |  4  5  6  7 |  8  9 10 11
+#     coluna :  3  3  3  3 |  2  2  2  2 |  1  1  1  1
+#     fileira:  1  2  3  4 |  4  3  2  1 |  1  2  3  4
+#
+# A coluna 2 aparece invertida abaixo porque e lida DE VOLTA, da fileira
+# 4 para a 1 - mas a lista aqui esta sempre na ordem de fileira crescente,
+# igual as outras duas.
 #
 # MORA AQUI PORQUE SAO DOIS PROGRAMAS: diz ao pegar_blocos em que coluna
 # do robo guardar cada bloco, e ao entregar_blocos de qual coluna tira-lo.
 # Duas copias um dia divergem, e ai os blocos saem em celulas trocadas.
+#
+# MEXEU AQUI, mexeu na varredura ou no FILEIRAS do entregar_blocos.py?
+# Rode o TESTE 1 do entregar_blocos.py - ele confere, sem o robo se
+# mexer, se as colunas continuam esvaziando na ordem inversa a que foram
+# enchidas.
 COLUNAS_MOSAICO = {
-    1: [0, 5, 6, 11],
-    2: [1, 4, 7, 10],
-    3: [2, 3, 8, 9],
+    1: [8, 9, 10, 11],
+    2: [7, 6, 5, 4],
+    3: [0, 1, 2, 3],
 }
 
 
@@ -299,7 +313,7 @@ COLUNAS_MOSAICO = {
 # =============================================================================
 
 # Lista de exemplo, para testar a logica de ordem sem depender de uma
-# leitura real do mosaico (rode leitura_blocos.py para obter a de
+# leitura real do mosaico (rode leitura_blocos_parte2.py para obter a de
 # verdade). Usada pelos testes do pegar_blocos.py e do entregar_blocos.py
 # - a mesma nos dois, para dar para acompanhar os dois lado a lado.
 #

@@ -1,14 +1,14 @@
 #!/usr/bin/env pybricks-micropython
 """
-parte2.py - Do mosaico ate o tapete de blocos
+parte3.py - Do mosaico ate o tapete de blocos
 =============================================
 
 O trecho que liga a LEITURA do mosaico a RETIRADA dos blocos.
 
-    parte1.executar()             largada -> posicao de leitura
-    leitura_blocos.ler_mosaico()  varre o mosaico -> 12 cores
-    parte2.executar()             <-- ESTE ARQUIVO
-    pegar_blocos(leituras)        retira os 12 blocos
+    parte1.executar()          largada -> posicao de leitura
+    ler_mosaico()              varre o mosaico -> 12 cores  (parte 2)
+    parte3.executar()          <-- ESTE ARQUIVO
+    pegar_blocos(leituras)     retira os 12 blocos
 
 Roda de dois jeitos, igual as outras partes:
 
@@ -19,7 +19,7 @@ Roda de dois jeitos, igual as outras partes:
 DE ONDE O ROBO VEM (fim do ler_mosaico):
 
     posicao : onde o avanco final da varredura o deixou, em cima do mosaico
-    garra   : EM CIMA - a parte1 a levantou e o ler_mosaico nao a baixou
+    garra   : EM CIMA - a parte1 a levantou e a leitura nao a baixou
     carrinho: na posicao da coluna 1 da varredura, fora do batente
 
 PARA ONDE ELE TEM DE IR (largada do pegar_blocos):

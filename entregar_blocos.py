@@ -11,43 +11,44 @@ sao FIXAS no topo do robo: mover o carrinho nao as desloca nem um
 milimetro em relacao ao mosaico. Entao, para deixar uma coluna em cima da
 celula certa, quem anda e o CHASSI. Este arquivo nunca mexe no motor_A.
 
-    varredura (leitura_blocos)  : quem atravessa o mosaico e o CARRINHO,
+    varredura (parte 2)         : quem atravessa o mosaico e o CARRINHO,
                                   porque os sensores andam nele
     entrega   (este arquivo)    : quem atravessa e o ROBO, porque as
                                   colunas nao andam
 
-O ROBO ENTREGA DE COSTAS. A leitura varre o mosaico avancando da fileira
-1 para a 4; a entrega volta por cima, da fileira 4 para a 1, andando de RE
-entre uma fileira e outra. Por isso as 3 ULTIMAS cores lidas sao as 3
-PRIMEIRAS entregues.
+O ROBO ENTREGA DE COSTAS, da fileira 4 para a 1, andando de RE entre uma
+fileira e outra.
 
-Dentro de cada fileira a ordem e a MESMA em que foi lida - so a ordem das
-FILEIRAS inverte:
+A VARREDURA LE POR COLUNA e a ENTREGA ANDA POR FILEIRA. Sao eixos
+diferentes, entao a lista de leituras nao e percorrida em ordem: cada
+fileira da entrega junta um indice de cada coluna lida.
 
-    leitura :  0  1  2 | 3  4  5 | 6  7  8 |  9 10 11
-    entrega :  9 10 11 | 6  7  8 | 3  4  5 |  0  1  2
+    leitura :  0  1  2  3 |  4  5  6  7 |  8  9 10 11
+    coluna  :  1  1  1  1 |  2  2  2  2 |  3  3  3  3
+    fileira :  1  2  3  4 |  4  3  2  1 |  1  2  3  4
 
-Isso preserva o zigue-zague de graca. A varredura terminou a fileira 4 na
-coluna 1, e a entrega comeca a fileira 3 na coluna 1 - o robo nunca
-atravessa o mosaico a toa:
+    entrega, fileira 4 :  3 (c1)   4 (c2)  11 (c3)
+             fileira 3 : 10 (c3)   5 (c2)   2 (c1)
+             fileira 2 :  1 (c1)   6 (c2)   9 (c3)
+             fileira 1 :  8 (c3)   7 (c2)   0 (c1)
 
-    fileira 4 (indices  9, 10, 11) : coluna 3 -> 2 -> 1
-    fileira 3 (indices  6,  7,  8) : coluna 1 -> 2 -> 3
-    fileira 2 (indices  3,  4,  5) : coluna 3 -> 2 -> 1
-    fileira 1 (indices  0,  1,  2) : coluna 1 -> 2 -> 3
+Dentro da fileira a ordem alterna, para o robo terminar uma fileira ja em
+cima da coluna onde a proxima comeca - sem atravessar o mosaico a toa.
 
 O INVARIANTE QUE FAZ ISSO FUNCIONAR: nessa ordem, cada coluna de
 armazenagem e esvaziada na ordem EXATAMENTE INVERSA a que o pegar_blocos
-a encheu. A coluna 1 foi carregada na ordem [0, 5, 6, 11] e e entregue em
-11, 6, 5, 0; a coluna 2 foi [1, 4, 7, 10] e sai 10, 7, 4, 1; a coluna 3
-foi [2, 3, 8, 9] e sai 9, 8, 3, 2.
+a encheu:
+
+    coluna 1 : carregada [0, 1, 2, 3]  ->  entregue 3, 2, 1, 0
+    coluna 2 : carregada [7, 6, 5, 4]  ->  entregue 4, 5, 6, 7
+    coluna 3 : carregada [8, 9, 10, 11] -> entregue 11, 10, 9, 8
 
 Ou seja: as colunas do robo se comportam como PILHA - o ultimo bloco que
-entrou e o primeiro que sai. Nao ha nada a fazer para conseguir isso, ele
-cai pronto da ordem das fileiras; mas se um dia alguem mexer em FILEIRAS
-ou em cte.COLUNAS_MOSAICO, e ISSO que tem de continuar valendo, senao os
-blocos saem trocados de celula. O TESTE 1 confere esse invariante sem o
-robo se mexer.
+entrou e o primeiro que sai. Isso cai pronto da ordem das fileiras; mas
+se um dia alguem mexer em FILEIRAS, em cte.COLUNAS_MOSAICO ou na ordem da
+varredura, e ISSO que tem de continuar valendo, senao os blocos saem
+trocados de celula. O TESTE 1 confere esse invariante sem o robo se
+mexer - RODE-O depois de qualquer mudanca nos tres.
 
 FALTA O MECANISMO: soltar_bloco() e um PLACEHOLDER. O robo ainda nao tem
 como liberar um bloco da coluna de armazenagem - quando tiver, e so essa
@@ -65,17 +66,29 @@ from setup import ev3
 # OS NUMEROS DESTA ETAPA  (medir com regua / calibrar no robo)
 # =============================================================================
 
-# --- Ordem de entrega: as 4 fileiras do mosaico, da ULTIMA lida para a
-# primeira, e dentro de cada uma os indices na ordem em que foram lidos.
+# --- Ordem de entrega: as 4 fileiras do mosaico, da fileira 4 para a 1,
+# e dentro de cada uma os indices na ordem em que o robo passa por elas.
 #
-# Os numeros sao indices da lista `leituras` que o leitura_blocos.py
-# devolve. Mexer aqui muda a ordem da entrega inteira - e obriga a
-# reconferir o invariante da pilha (TESTE 1). ---
+# Os numeros sao indices da lista `leituras`. A varredura le uma COLUNA
+# de cada vez, entao cada fileira aqui junta um indice de cada coluna:
+#
+#     fileira 4 :  3 (c1)   4 (c2)  11 (c3)
+#     fileira 3 :  2 (c1)   5 (c2)  10 (c3)
+#     fileira 2 :  1 (c1)   6 (c2)   9 (c3)
+#     fileira 1 :  0 (c1)   7 (c2)   8 (c3)
+#
+# DENTRO DA FILEIRA a ordem alterna (c1->c2->c3, depois c3->c2->c1, e
+# assim por diante): o robo termina uma fileira ja em cima da coluna onde
+# a proxima comeca, e nao atravessa o mosaico a toa. Isso NAO afeta o
+# invariante da pilha - so a distancia percorrida.
+#
+# Mexer aqui muda a ordem da entrega inteira - e obriga a reconferir o
+# invariante da pilha (TESTE 1). ---
 FILEIRAS = (
-    (9, 10, 11),   # fileira 4 - a ultima lida, a primeira entregue
-    (6,  7,  8),   # fileira 3
-    (3,  4,  5),   # fileira 2
-    (0,  1,  2),   # fileira 1 - a primeira lida, a ultima entregue
+    (3,  4, 11),   # fileira 4 - a primeira entregue.  c1 -> c2 -> c3
+    (10, 5,  2),   # fileira 3                         c3 -> c2 -> c1
+    (1,  6,  9),   # fileira 2                         c1 -> c2 -> c3
+    (8,  7,  0),   # fileira 1 - a ultima entregue.    c3 -> c2 -> c1
 )
 
 # --- Quanto o ROBO anda para deixar cada coluna de armazenagem em cima
@@ -164,7 +177,7 @@ def entregar_blocos(leituras):
     """
     Devolve os 12 blocos ao mosaico, DE COSTAS: fileira 4, 3, 2, 1.
 
-    `leituras` : a mesma lista de 12 cores que o leitura_blocos.py
+    `leituras` : a mesma lista de 12 cores que a leitura (parte 2)
                  devolveu e o pegar_blocos.py consumiu. Aqui ela so serve
                  para IMPRIMIR o que deveria estar caindo em cada celula -
                  quem decide de qual coluna o bloco sai e a posicao dele
@@ -181,7 +194,7 @@ def entregar_blocos(leituras):
 
     Chegar nessa posicao NAO e trabalho deste arquivo - e do percurso que
     liga o tapete de blocos de volta ao mosaico, do mesmo jeito que o
-    parte2.py liga o mosaico ao tapete.
+    parte3.py liga o mosaico ao tapete.
 
     COMO O ROBO SE MOVE. Ele guarda UMA posicao absoluta ao longo do eixo
     da entrega, e cada celula e um alvo nesse eixo:

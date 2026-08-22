@@ -5,12 +5,12 @@ prog1.py - Programa da prova
 
 Emenda as partes do percurso na ordem em que elas acontecem na rodada:
 
-    parte1.executar()             largada -> posicao de leitura
-    leitura_blocos.ler_mosaico()  varre o mosaico -> 12 cores
-    parte2.executar()             mosaico -> tapete de blocos
-    pegar_blocos(leituras)        retira os 12 blocos
-    (percurso que falta)          tapete de blocos -> volta ao mosaico
-    entregar_blocos(leituras)     devolve os 12 blocos no mosaico
+    parte1.executar()          largada -> posicao de leitura
+    ler_mosaico()              varre o mosaico -> 12 cores  (parte 2)
+    parte3.executar()          mosaico -> tapete de blocos
+    pegar_blocos(leituras)     retira os 12 blocos
+    (percurso que falta)       tapete de blocos -> volta ao mosaico
+    entregar_blocos(leituras)  devolve os 12 blocos no mosaico
 
 E SO ISSO QUE ESTE ARQUIVO FAZ. Nenhum numero e nenhum movimento moram
 aqui - cada parte traz os seus. Cada parte continua rodando sozinha com
@@ -26,7 +26,7 @@ delas estao comentadas ate ficarem prontas):
        que ainda nao existe no robo. Sem ele o entregar_blocos faz o
        caminho e apita em cada celula, mas nao entrega nada.
     2. o PERCURSO DE VOLTA do tapete de blocos ate o mosaico - o
-       equivalente do parte2, na outra direcao. E o que poe o robo em
+       equivalente do parte3, na outra direcao. E o que poe o robo em
        cima da FILEIRA 4, que e de onde o entregar_blocos comeca (ele
        entrega de costas, da fileira 4 para a 1).
     3. a MISSAO DO QUADRILATERO TRASEIRO. Falta decidir ONDE na rodada
@@ -42,8 +42,8 @@ dentro.
 
 from setup import ev3
 import parte1
-import leitura_blocos
-import parte2
+import leitura_blocos_parte2
+import parte3
 from pegar_blocos import pegar_blocos
 from entregar_blocos import entregar_blocos
 
@@ -54,13 +54,13 @@ parte1.executar()
 # --- 2. Leitura do mosaico ---------------------------------------------
 # Devolve as 12 cores na ordem da varredura - a mesma ordem que o
 # pegar_blocos.py espera receber.
-leituras = leitura_blocos.ler_mosaico()
+leituras = leitura_blocos_parte2.ler_mosaico()
 print("mosaico lido:", leituras)
 
 # --- 3. Percurso ate o tapete de blocos --------------------------------
 # Termina com o robo encostado na parede e o carrinho recolhido, que e
 # exatamente a largada da etapa 4.
-parte2.executar()
+parte3.executar()
 
 # --- 4. Retirada dos blocos --------------------------------------------
 # O proprio pegar_blocos zera o carrinho contra o batente antes do
@@ -69,8 +69,8 @@ pegar_blocos(leituras)
 
 # --- 5. Volta ao mosaico -----------------------------------------------
 # NAO EXISTE AINDA. Falta o percurso que leva o robo do tapete de blocos
-# de volta para cima da FILEIRA 4 do mosaico - o parte2 ao contrario.
-# Escreva num arquivo proprio (parte3.py) e chame aqui, como as outras
+# de volta para cima da FILEIRA 4 do mosaico - o parte3 ao contrario.
+# Escreva num arquivo proprio (parte4.py) e chame aqui, como as outras
 # partes; nao cole a sequencia dentro deste arquivo.
 
 # --- 6. Entrega dos blocos ---------------------------------------------
