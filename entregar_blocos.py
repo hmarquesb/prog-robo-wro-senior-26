@@ -17,14 +17,9 @@ FILEIRAS inverte:
     leitura :  0  1  2 | 3  4  5 | 6  7  8 |  9 10 11
     entrega :  9 10 11 | 6  7  8 | 3  4  5 |  0  1  2
 
-Isso preserva o zigue-zague de graca. A varredura terminou a fileira 4 na
-coluna 1, e a entrega comeca a fileira 3 na coluna 1 - o carrinho nunca
-atravessa o mosaico a toa:
-
-    fileira 4 (indices  9, 10, 11) : coluna 3 -> 2 -> 1
-    fileira 3 (indices  6,  7,  8) : coluna 1 -> 2 -> 3
-    fileira 2 (indices  3,  4,  5) : coluna 3 -> 2 -> 1
-    fileira 1 (indices  0,  1,  2) : coluna 1 -> 2 -> 3
+Isso preserva o zigue-zague de graca: a varredura terminou a fileira 4 na
+coluna 1, e a entrega comeca a fileira 3 na coluna 1, entao o carrinho
+nunca atravessa o mosaico a toa.
 
 O INVARIANTE QUE FAZ ISSO FUNCIONAR: nessa ordem, cada coluna de
 armazenagem e esvaziada na ordem EXATAMENTE INVERSA a que o pegar_blocos
