@@ -61,7 +61,7 @@ from pybricks.parameters import Color
 # =============================================================================
 
 DIAMETRO_RODA = 62.4      # mm
-ENTRE_EIXOS   = 184.5     # mm - distancia entre o centro das duas rodas
+ENTRE_EIXOS   = 185     # mm - distancia entre o centro das duas rodas
 
 # mm que o robo anda para cada 1 grau de rotacao da roda. Sai das duas
 # medidas acima; nao e um valor para ajustar na mao.
@@ -230,15 +230,16 @@ SERVO_TENTATIVAS = 3
 # arremesso - tudo o mais depende de o robo parar no lugar certo. Rode
 # pegar_blocos.py no TESTE 1. ---
 POSICAO_COLUNA = {
-    Color.WHITE:  [120, 200],
-    Color.GREEN:  [295, 385],
-    Color.BLUE:   [450, 550],
-    Color.YELLOW: [610, 700],
+    Color.WHITE:  [90, 150],
+    Color.GREEN:  [240, 305],
+    Color.BLUE:   [400, 480],
+    Color.YELLOW: [570, 625],
 }
 
 # Mesma ordem fisica do tapete. Existe como tupla (e nao so como as
 # chaves de POSICAO_COLUNA) porque a ordem de iteracao de um dict no
-# MicroPython e arbitraria, e escolher_cor precisa de desempate estavel.
+# MicroPython e arbitraria, e o passeio pelas 8 colunas (TESTE 1 do
+# pegar_blocos.py) precisa de uma ordem estavel.
 CORES = (Color.WHITE, Color.GREEN, Color.BLUE, Color.YELLOW)
 
 # --- Ordem em que os 6 blocos de UMA cor saem, como
@@ -269,10 +270,12 @@ ORDEM_NA_COR = (
 )
 BLOCOS_POR_COR = len(ORDEM_NA_COR)
 
-# Ordem em que as COLUNAS DO MOSAICO sao atendidas na retirada: primeira,
-# terceira, meio. Diferente da ordem em que foram lidas e da ordem em que
-# serao entregues.
-ORDEM_RETIRADA = (1, 3, 2)
+# A ORDEM ENTRE AS COLUNAS DO ROBO NAO MORA MAIS AQUI. Existia um
+# ORDEM_RETIRADA = (1, 3, 2), que mandava encher uma coluna de cada vez.
+# As colunas continuam sendo pilhas, e a ordem DENTRO de cada uma
+# continua fixa (e o COLUNAS_MOSAICO abaixo) - o que ficou livre foi o
+# INTERCALAMENTO entre elas, e quem escolhe o de menor percurso e o
+# pegar_blocos.planejar().
 
 
 # =============================================================================
@@ -317,9 +320,10 @@ COLUNAS_MOSAICO = {
 # verdade). Usada pelos testes do pegar_blocos.py e do entregar_blocos.py
 # - a mesma nos dois, para dar para acompanhar os dois lado a lado.
 #
-# Este exemplo tem AMARELO 5 vezes. Com BLOCOS_POR_COR = 6 isso NAO
-# aciona a troca de cor do escolher_cor; para testar a substituicao,
-# ponha uma cor 7 vezes ou mais.
+# Este exemplo tem AMARELO 5 vezes, dentro dos BLOCOS_POR_COR = 6 que o
+# tapete tem de cada cor. Para ver o robo PULAR uma celula por falta de
+# bloco (o unico caso em que ele nao entrega os 12), ponha uma cor 7
+# vezes ou mais.
 LEITURAS_TESTE = [
     Color.YELLOW, Color.GREEN, Color.BLUE,
     Color.YELLOW, Color.GREEN, Color.WHITE,

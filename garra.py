@@ -83,7 +83,7 @@ ANGULO_ABAIXADA = 30
 # ESTE E OS TEMPOS ANDAM JUNTOS: baixar a velocidade sem subir TIMEOUT_MS
 # e TEMPO_ZERAR_MS na mesma proporcao faz a garra ser cortada no meio do
 # caminho.
-V_DESCER = -600
+V_DESCER = -800
 
 # Rede de seguranca da descida: se em TIMEOUT_MS a garra nao chegou no
 # alvo, o programa desiste do movimento e SEGUE. Tem de caber a descida
@@ -102,7 +102,7 @@ PARADA = Stop.HOLD
 # Este e o valor com o carrinho POUCO estendido. Quem zera com o carrinho
 # todo para fora (o pegar_blocos, em cima da coluna) tem curso livre mais
 # longo e passa o seu proprio tempo na chamada.
-TEMPO_ZERAR_MS = 1700
+TEMPO_ZERAR_MS = 1600
 
 # --- LEVANTAR ---
 # A garra nao tem "angulo levantado": ela sobe por TEMPO, e o par

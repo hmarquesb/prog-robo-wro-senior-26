@@ -65,7 +65,12 @@ parte3.executar()
 # --- 4. Retirada dos blocos --------------------------------------------
 # O proprio pegar_blocos zera o carrinho contra o batente antes do
 # primeiro bloco - e dali que saem as tres profundidades.
-pegar_blocos(leituras)
+#
+# Devolve a ORDEM EM QUE AS 3 COLUNAS DO ROBO FORAM ENCHIDAS. A entrega
+# precisa disso: cada coluna e uma pilha, e tem de ser esvaziada na ordem
+# inversa a que foi enchida.
+carregadas = pegar_blocos(leituras)
+print("colunas carregadas:", carregadas)
 
 # --- 5. Volta ao mosaico -----------------------------------------------
 # NAO EXISTE AINDA. Falta o percurso que leva o robo do tapete de blocos

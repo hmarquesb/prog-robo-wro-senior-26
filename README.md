@@ -409,8 +409,8 @@ são o mesmo arquivo, de propósito (regra 1).
 | 7 | `POSICAO_COLUNA` (as 8 colunas) | `constantes.py` → `pegar_blocos.py`, `TESTE = 1` |
 | 8 | `PROFUNDIDADES` (as 3 do carrinho) | `pegar_blocos.py`, `TESTE = 2` |
 | 9 | `ANGULO_ABAIXADA`, `TEMPO_ZERAR_MS` | `garra.py`, F5 |
-| 10 | `ARREMESSO_V` / `_MS` | `pegar_blocos.py`, `TESTE = 3` |
-| 11 | `COLUNA_1/2/3` (varredura do mosaico) | `leitura_blocos.py`, F5 |
+| 10 | `ARREMESSO_V` / `_MS` | `pegar_blocos.py`, `TESTE = 3` (a rodada inteira) |
+| 11 | `COLUNA_1/2/3` (varredura do mosaico) | `leitura_blocos_parte2.py`, F5 |
 | 12 | `POSICAO_ROBO_COLUNA` (posições do **robô**) | `entregar_blocos.py`, `TESTE = 2` |
 
 Detalhes:
@@ -439,21 +439,22 @@ Detalhes:
    uma não desloca as outras sete. **É o primeiro da fila do tapete** — tudo o
    mais depende de o robô parar no lugar certo.
 
-8. **`PROFUNDIDADES`** — as três posições do carrinho, agora em **graus do
+8. **`PROFUNDIDADES`** — as três posições do carrinho, em **graus do
    `motor_A`** (não mais em mm de correia). O teste zera contra o batente e
    para nas três, esperando o `CENTER` entre elas.
    As três erradas para o mesmo lado → só a primeira está errada, some a mesma
    diferença nas outras duas. A primeira certa e a terceira errada → o **passo**
-   está errado: os blocos são igualmente espaçados, então `1→2` e `2→3` têm de
-   ser a mesma diferença. Motor zumbindo parado na do fundo → o alvo passou do
-   fim de curso mecânico.
+   está errado: os blocos são igualmente espaçados, então perto→meio e
+   meio→fundo têm de ser a mesma diferença. Motor zumbindo parado na do fundo →
+   o alvo passou do fim de curso mecânico.
 
-10. **Arremesso** — pelos botões do EV3, com o robô parado: `DOWN`/`CENTER`/
-    `UP` guardam nas colunas 1/2/3, `LEFT` re-zera a garra, `RIGHT` sai. É
-    **um par só** para as três colunas, então ele tem de servir às **três
-    profundidades**: o bloco é lançado de onde o carrinho parou. Bloco
-    perto/longe demais nas três → é o arremesso. Bloco viajando certo mas
-    entrando na coluna errada → é o servo (item 6).
+10. **Arremesso** — **não tem teste próprio**: é um par só para os 12 blocos,
+    então não há nada para comparar entre um bloco e outro. Ajuste os dois
+    números e rode o `TESTE 3`, a rodada inteira.
+    Ele tem de servir às **três profundidades**, porque o bloco é lançado de
+    onde o carrinho parou. Bloco perto/longe demais nos 12 → é o arremesso.
+    Bloco viajando certo mas entrando na coluna errada → é o servo (item 6),
+    ajustado no `arduino_servos.ino`.
 
 12. **`POSICAO_ROBO_COLUNA`** — posições do **robô**, não do carrinho: as
     colunas são fixas, então quem anda de uma célula à outra é o chassi. O

@@ -13,16 +13,30 @@ partida para partida) a partir de onde o robo comeca:
     branco1, branco2, verde1, verde2, azul1, azul2, amarelo1, amarelo2
 
 Cada coluna vertical tem 3 blocos empilhados de lado, e o carrinho
-alcanca OS TRES (perto, meio e fundo - as tres PROFUNDIDADES abaixo).
-Entao sao 3 blocos por coluna x 2 colunas = 6 BLOCOS ALCANCAVEIS POR COR.
+alcanca OS TRES (perto, meio e fundo). Entao sao 3 blocos por coluna x 2
+colunas = 6 BLOCOS ALCANCAVEIS POR COR.
 
 O CICLO DE UM BLOCO - o mesmo do primeiro ao decimo segundo:
 
-    1. anda ate a coluna         (ir_ate_coluna)
+    1. anda ate a coluna         (ir_ate_posicao)
     2. estende o carrinho ate a profundidade do bloco
        (motor_A.run_target, escrito no proprio laco)
     3. guarda                    (guardar_bloco: servo -> arremesso ->
                                   garra desce de volta)
+
+AS 3 COLUNAS DO ROBO SAO PILHAS. O bloco que entra por ultimo e o
+primeiro a sair, e a entrega percorre o mosaico numa ordem que a
+geometria fixa - entao a ordem de ENCHIMENTO de cada coluna esta dada, e
+e o inverso da ordem de saida (cte.COLUNAS_MOSAICO).
+
+O ROBO PRECISA IR E VOLTAR NO TAPETE por causa disso: qual coluna do robo
+recebe um bloco depende da CELULA que ele vai preencher, nao de onde ele
+foi pego. Com tres pilhas exigindo ordens diferentes, e as cores
+espalhadas pelo tapete, nao existe uma varredura so que atenda as tres.
+
+O QUE DA PARA ESCOLHER e o INTERCALAMENTO das tres filas - e o
+planejar() escolhe o de menor percurso, por programacao dinamica, antes
+de o robo sair do lugar. O laco so executa o plano.
 
 QUEM ESCOLHE A COLUNA DE ARMAZENAGEM E O SERVO. As 3 colunas sao FIXAS no
 topo do robo, e um servo montado nelas poe a boca certa debaixo do
@@ -40,35 +54,49 @@ e nao no comeco do bloco seguinte. Ou seja: fora o instante do arremesso
 a garra fica SEMPRE EMBAIXO, pronta para fechar. Quem chama nao precisa
 descer a garra em lugar nenhum.
 
-A UNICA EXCECAO E O PRIMEIRO BLOCO: ali a garra ainda chega EM CIMA (a
-parte3 a entrega assim) e a descida e o zerar_garra - a unica ida ao
-batente da rodada. Ela acontece depois de o carrinho ja ter estendido,
-que e o que o garra.py exige para a garra chegar no batente de baixo sem
-bater na estrutura do robo.
+A DESCIDA DA GARRA ACONTECE NA ABERTURA DESTA ETAPA, antes do primeiro
+bloco: o carrinho zera e, EM SEGUIDA, abre ate o fundo AO MESMO TEMPO em
+que a garra desce e zera. Assim o laco nao tem caso especial nenhum - os
+12 blocos sao iguais.
 
-PARA CONFERIR NO ROBO: com a garra embaixo desde o primeiro arremesso, os
-dois blocos da frente de uma coluna passam por BAIXO dela toda vez que o
-carrinho estende ate o fundo de uma coluna nova (7 das 8 colunas - a
-primeira ainda pega a garra levantada). Dentro de uma mesma coluna nao ha
-risco: ali o carrinho so RECOLHE, por cima de posicoes ja esvaziadas.
+    (Antes a descida ficava DENTRO do laco, com um "se for o primeiro
+    bloco": a garra chegava levantada da etapa anterior e so descia la
+    na primeira coluna. Era um caso especial que valia para 1 dos 12.)
+
+PARA CONFERIR NO ROBO: com a garra embaixo desde o inicio, os dois blocos
+da frente de uma coluna passam por BAIXO dela toda vez que o carrinho
+estende ate o fundo de uma coluna nova - agora nas 8, e nao em 7. Dentro
+de uma mesma coluna nao ha risco: ali o carrinho so RECOLHE, por cima de
+posicoes ja esvaziadas.
 
 LARGADA (o que a parte3 tem de entregar):
 
     robo     : de lado para o tapete e ENCOSTADO NA PAREDE. E a posicao 0
                de onde todo o POSICAO_COLUNA foi medido.
     carrinho : RECOLHIDO, encostado no batente de casa.
-    garra    : EM CIMA. Ela so desce na primeira coluna.
+    garra    : EM CIMA. Quem a desce e a abertura desta etapa.
 
 O CARRINHO SO SE MEXE COM O ROBO PARADO (README, regra 8). O robo PODE
 andar com o carrinho estendido - desde que ele virou peca impressa em 3D
 ficou leve o bastante -, o proibido e move-lo DURANTE a andada. Por isso
-nao ha recolhimento entre um bloco e outro nem para trocar de coluna.
+nao ha recolhimento entre um bloco e outro nem para trocar de coluna, e
+por isso o robo sai para a primeira coluna ja com o carrinho no fundo.
 
-APOSTA DA ESTRATEGIA: o mosaico pede 12 blocos e existem 24 alcancaveis
-(6 por cor), entao so faltaria bloco se uma cor sozinha fosse pedida
-MAIS DE 6 VEZES - metade do mosaico na mesma cor. Se acontecer, o
-excedente vira uma cor que ainda tenha bloco sobrando, de preferencia a
-mais perto, para nao gastar percurso (ver escolher_cor).
+O MOSAICO PEDE, O ROBO PEGA. Nao ha substituicao de cor: o carrinho
+alcanca as 8 colunas do tapete, entao os 6 blocos de cada cor estao todos
+disponiveis, e 12 pedidos nunca esgotam 24 alcancaveis.
+
+UMA CELULA E PULADA (apito + print, rodada segue) em dois casos: quando a
+leitura dela nao deu cor de tapete - PRETO, None, vermelho, marrom - e
+quando o mosaico pediu aquela cor mais de 6 vezes. Sem essas duas
+guardas seriam KeyError e IndexError, e uma celula ruim custaria os
+outros onze blocos. As duas acontecem no planejar(), antes de o robo sair
+do lugar.
+
+pegar_blocos() DEVOLVE A ORDEM DE ENCHIMENTO das 3 colunas do robo. Em
+rodada limpa ela e igual a cte.COLUNAS_MOSAICO; o que ela acrescenta e o
+registro do que FALTOU, quando alguma celula foi pulada. O
+entregar_blocos esvazia cada coluna na ordem INVERSA a essa.
 """
 
 from pybricks.parameters import Button, Stop
@@ -95,15 +123,15 @@ from setup import ev3, motor_A
 #     indice 2 = fundo  : o ultimo que o carrinho alcanca
 #
 # OS PASSOS TEM DE SER IGUAIS entre si: os blocos sao igualmente
-# espacados no tapete. Se o primeiro estiver certo e o terceiro errado,
-# o passo esta errado - nao mexa so no terceiro.
+# espacados no tapete. Se o perto estiver certo e o fundo errado, o passo
+# esta errado - nao mexa so no fundo.
 #
-# PLACEHOLDER - MEDIR NO ROBO (TESTE 2 no fim deste arquivo). O carrinho
-# passou a ser comandado em GRAUS do motor, e nao mais em mm de correia,
-# entao os valores antigos em milimetro nao servem de referencia.
-PROFUNDIDADES = (100, 260, 420)
+# PLACEHOLDER - MEDIR NO ROBO (TESTE 2 no fim deste arquivo). O fundo
+# saiu do passo dos outros dois (900 - 100 = 800), nao de uma medida
+# propria: confira os tres com regua.
+PROFUNDIDADES = (100, 900, 1800)
 
-V_CARRINHO = 1000     # graus/s do motor_A ao trocar de profundidade
+V_CARRINHO = 1000    # graus/s do motor_A ao trocar de profundidade
 
 # --- Zeragem do carrinho contra o batente de casa ---
 # Gira ate travar e chama aquele ponto de zero. As PROFUNDIDADES acima
@@ -115,8 +143,18 @@ V_CARRINHO = 1000     # graus/s do motor_A ao trocar de profundidade
 #   trava antes de chegar no batente        -> aumente a FORCA
 #   estala / range ao bater                 -> diminua a VELOCIDADE, e so
 #                                              depois a forca
-V_ZERAR     = -400    # graus/s, negativo = recolhe
-FORCA_ZERAR = 60      # duty_limit em %
+V_ZERAR     = -800    # graus/s, negativo = recolhe
+FORCA_ZERAR = 70      # duty_limit em %
+
+# --- Atraso entre o carrinho comecar a abrir e a garra comecar a descer,
+# na ABERTURA desta etapa (os dois correm ao mesmo tempo) ---
+# A garra so tem curso livre com o carrinho ja fora do batente: se ela
+# descer junto, desde o inicio, bate na estrutura do robo. Este atraso e
+# o quanto o carrinho sai na frente.
+#
+#   a garra raspa / trava na estrutura  -> AUMENTE
+#   o robo fica parado esperando a toa  -> diminua
+ATRASO_GARRA_MS = 100
 
 # --- ARREMESSO: UM par (velocidade, tempo) para os 12 blocos ---
 # A garra fecha em cima do bloco e o arremessa para dentro do robo DE
@@ -129,11 +167,13 @@ FORCA_ZERAR = 60      # duty_limit em %
 # motor_D - abaixo disso ela passa o movimento inteiro acelerando e ja
 # freando, e gira um arco pequeno por mais alta que seja a velocidade.
 #
-# CALIBRAR NAS TRES PROFUNDIDADES (TESTE 3): o bloco e lancado de onde o
-# carrinho parou, e a distancia ate a boca das colunas muda com ela. O
-# par tem de servir as tres.
-ARREMESSO_V  = 600
-ARREMESSO_MS = 720
+# TEM DE SERVIR AS TRES PROFUNDIDADES: o bloco e lancado de onde o
+# carrinho parou, e a distancia ate a boca das colunas muda com ela.
+# Ajuste os dois numeros e rode o TESTE 3 (a retirada inteira) - se o
+# bloco cai perto ou longe demais nos 12, e este par; se ele viaja certo
+# mas entra na coluna errada, e o angulo do servo, no arduino_servos.ino.
+ARREMESSO_V  = 1000
+ARREMESSO_MS = 1100
 
 # Tempo da zeragem da garra AQUI, com o carrinho todo estendido em cima
 # da coluna: o curso livre e mais longo que o do garra.py, entao o tempo
@@ -142,57 +182,184 @@ TEMPO_ZERAR_GARRA_MS = 1200
 
 # Troca de coluna no tapete: o robo anda de lado para os blocos, muitas
 # vezes com o carrinho estendido.
-ANDAR_BLOCOS = dict(v_max=500, v_min=100, acel=200, desacel=3000,
-                    kp=6, kd=4)
+ANDAR_BLOCOS = dict(v_max=450, v_min=100, acel=200, desacel=1000,
+                    kp=6, kd=3)
 
 
 # =============================================================================
 # 1. ESCOLHA DO BLOCO
 # =============================================================================
 
-def coluna_e_profundidade(ja_pegos_desta_cor):
+def coluna_de_armazenagem(indice_celula):
     """
-    A partir de quantos blocos dessa cor ja foram retirados, devolve
-    (indice_coluna, indice_profundidade):
+    Em qual das 3 colunas do robo (1, 2 ou 3) o bloco daquela celula do
+    mosaico tem de ser guardado.
 
-        indice_coluna       : 0 = coluna mais proxima, 1 = coluna irma
-        indice_profundidade : 0 perto, 1 meio, 2 fundo
+    Le do cte.COLUNAS_MOSAICO, que e a mesma tabela que o
+    entregar_blocos.py consulta para saber de onde tirar cada bloco.
 
-    E so uma consulta a cte.ORDEM_NA_COR - a estrategia (esvaziar uma
-    coluna de cada vez, do fundo para a frente) esta escrita la, nao
-    aqui, para mudar de ideia sem mexer em funcao nenhuma.
+    Devolve None para indice fora de 0..11.
     """
-    return cte.ORDEM_NA_COR[ja_pegos_desta_cor]
+    for coluna in (1, 2, 3):
+        if indice_celula in cte.COLUNAS_MOSAICO[coluna]:
+            return coluna
+    return None
 
 
-def escolher_cor(cor_pedida, ja_pegos, posicao_atual_mm):
+def filas_de_enchimento(leituras):
     """
-    Decide qual cor o robo vai realmente pegar.
+    Devolve as 3 filas de enchimento - uma por coluna do robo -, cada uma
+    com os indices de celula NA ORDEM OBRIGATORIA em que aquela coluna
+    tem de ser carregada.
 
-    Normalmente e a propria `cor_pedida`. Mas so ha BLOCOS_POR_COR blocos
-    alcancaveis de cada cor, entao se o mosaico pedir essa cor mais vezes
-    do que isso, o excedente e substituido por outra cor que ainda tenha
-    bloco sobrando - a MAIS PERTO da posicao atual, para nao gastar
-    percurso a toa.
+    ESSA ORDEM NAO E ESCOLHA NOSSA. As colunas sao PILHAS: o ultimo bloco
+    que entra e o primeiro que sai. A entrega percorre o mosaico numa
+    ordem que a geometria fixa (fileira 4 -> 1), entao a ordem de SAIDA de
+    cada coluna esta dada - e a de ENTRADA tem de ser exatamente o
+    inverso dela. E isso que cte.COLUNAS_MOSAICO ja guarda.
 
-    Devolve None se todas as cores esgotaram (nao deve acontecer: sao 12
-    blocos pedidos contra 24 alcancaveis).
+    Duas coisas tiram uma celula da fila, com apito e print, e a rodada
+    segue sem ela:
+
+      - a leitura nao deu cor de tapete (PRETO, None, vermelho, marrom);
+      - o mosaico pediu aquela cor mais de BLOCOS_POR_COR vezes.
+
+    Tirar uma celula NAO quebra a pilha: as que sobram continuam na mesma
+    ordem relativa. A coluna so termina com menos blocos do que o previsto.
     """
-    if ja_pegos[cor_pedida] < cte.BLOCOS_POR_COR:
-        return cor_pedida
-
-    melhor = None
-    melhor_distancia = 0
+    ja_pedidos = {}
     for cor in cte.CORES:
-        if ja_pegos[cor] >= cte.BLOCOS_POR_COR:
-            continue
-        indice_coluna, _ = coluna_e_profundidade(ja_pegos[cor])
-        distancia = abs(cte.POSICAO_COLUNA[cor][indice_coluna]
-                        - posicao_atual_mm)
-        if melhor is None or distancia < melhor_distancia:
-            melhor = cor
-            melhor_distancia = distancia
-    return melhor
+        ja_pedidos[cor] = 0
+
+    filas = []
+    for coluna in (1, 2, 3):
+        fila = []
+        for indice_celula in cte.COLUNAS_MOSAICO[coluna]:
+            cor = leituras[indice_celula]
+
+            if cor not in cte.CORES:
+                ev3.speaker.beep(200, 300)
+                print("celula", indice_celula, "leu", cor,
+                      "- nao e cor do tapete, pulando")
+                continue
+
+            if ja_pedidos[cor] >= cte.BLOCOS_POR_COR:
+                ev3.speaker.beep(200, 300)
+                print("acabaram os blocos", cor, "- celula", indice_celula,
+                      "vai ficar vazia")
+                continue
+
+            ja_pedidos[cor] += 1
+            fila.append(indice_celula)
+        filas.append(fila)
+
+    return filas
+
+
+def planejar(leituras):
+    """
+    Monta a ORDEM DE RETIRADA dos blocos e devolve uma lista de passos:
+
+        (posicao_mm, indice_profundidade, indice_celula, cor)
+
+    O QUE E FIXO E O QUE E LIVRE:
+
+      FIXO   a ordem DENTRO de cada coluna do robo (filas_de_enchimento):
+             as colunas sao pilhas, e a entrega exige que entrem no
+             inverso da ordem em que vao sair.
+      FIXO   a ordem DENTRO de uma cor (cte.ORDEM_NA_COR): esvazia a
+             coluna de perto - fundo, meio, perto - e so entao a irma.
+             E o que garante que nunca haja bloco ATRAS do que esta sendo
+             arremessado, e que o carrinho so RECOLHA dentro de uma coluna.
+      LIVRE  o INTERCALAMENTO das 3 filas entre si. E so aqui que da para
+             otimizar - e e o que esta funcao faz.
+
+    POR QUE O ROBO PRECISA IR E VOLTAR NO TAPETE: a coluna do robo que
+    recebe um bloco e ditada pela CELULA do mosaico que ele vai preencher,
+    nao por onde ele foi pego. Como cada coluna tem de ser enchida numa
+    ordem especifica, e as cores dessas celulas estao espalhadas pelo
+    tapete, nao existe ordem que atenda as tres pilhas numa varredura so.
+
+    COMO ESCOLHE: programacao dinamica sobre o estado
+
+        (quanto ja saiu de cada fila, posicao do robo)
+
+    Sao 5x5x5 combinacoes de indice, cada uma com no maximo 3 posicoes
+    possiveis - umas centenas de estados. Roda uma vez, antes de o robo
+    sair do lugar, e da o intercalamento de MENOR PERCURSO, nao um
+    palpite. Um guloso "pega sempre a fila mais perto" fica ~20% pior.
+
+    A CONTAGEM POR COR NAO PRECISA ENTRAR NA CHAVE: quantos blocos de
+    cada cor ja sairam e consequencia de quanto saiu de cada fila, entao
+    dois caminhos ate o mesmo estado tem sempre a mesma contagem.
+    """
+    filas = filas_de_enchimento(leituras)
+    total = len(filas[0]) + len(filas[1]) + len(filas[2])
+
+    # Chave: (i0, i1, i2, posicao_mm).  Valor: (custo_mm, ordem_das_celulas)
+    estados = {(0, 0, 0, 0): (0, ())}
+
+    for _ in range(total):
+        proximos = {}
+
+        for chave in estados:
+            custo, ordem = estados[chave]
+            posicao = chave[3]
+
+            # Quantos de cada cor ja foram pegos ate aqui - e isso que
+            # diz de qual das duas colunas do tapete sai o proximo.
+            contagens = {}
+            for cor in cte.CORES:
+                contagens[cor] = 0
+            for celula in ordem:
+                contagens[leituras[celula]] += 1
+
+            for fila in range(3):
+                if chave[fila] >= len(filas[fila]):
+                    continue      # esta fila ja acabou
+
+                indice_celula = filas[fila][chave[fila]]
+                cor = leituras[indice_celula]
+                indice_coluna, _ = cte.ORDEM_NA_COR[contagens[cor]]
+                destino = cte.POSICAO_COLUNA[cor][indice_coluna]
+
+                novo_custo = custo + abs(destino - posicao)
+                avancos = [chave[0], chave[1], chave[2]]
+                avancos[fila] += 1
+                nova_chave = (avancos[0], avancos[1], avancos[2], destino)
+
+                anterior = proximos.get(nova_chave)
+                if anterior is None or novo_custo < anterior[0]:
+                    proximos[nova_chave] = (novo_custo,
+                                            ordem + (indice_celula,))
+
+        estados = proximos
+
+    # O melhor entre os estados finais.
+    melhor = None
+    for chave in estados:
+        if melhor is None or estados[chave][0] < melhor[0]:
+            melhor = estados[chave]
+
+    if melhor is None:
+        return []
+
+    print("percurso planejado:", melhor[0], "mm")
+
+    # Traduz a ordem escolhida em passos executaveis.
+    passos = []
+    contagens = {}
+    for cor in cte.CORES:
+        contagens[cor] = 0
+
+    for indice_celula in melhor[1]:
+        cor = leituras[indice_celula]
+        indice_coluna, indice_profundidade = cte.ORDEM_NA_COR[contagens[cor]]
+        passos.append((cte.POSICAO_COLUNA[cor][indice_coluna],
+                       indice_profundidade, indice_celula, cor))
+        contagens[cor] += 1
+
+    return passos
 
 
 # =============================================================================
@@ -214,22 +381,19 @@ def zerar_carrinho():
     motor_A.reset_angle(0)
 
 
-def ir_ate_coluna(cor, indice_coluna, posicao_atual_mm):
+def ir_ate_posicao(destino_mm, posicao_atual_mm):
     """
-    Anda reto (frente ou re) da posicao atual ate a coluna vertical pedida
-    daquela cor. Devolve a nova posicao (mm).
+    Anda reto da posicao atual ate `destino_mm` (mm contados da parede).
+    Devolve a nova posicao.
 
-    Nao faz NADA se a coluna pedida for a mesma de onde o robo ja esta
-    (delta 0) - o caso do 2o e do 3o bloco de cada coluna, que saem so
-    recolhendo o carrinho.
+    Nao faz NADA se ja estiver la (delta 0) - o caso do 2o e do 3o bloco
+    de uma mesma coluna do tapete, que saem so recolhendo o carrinho.
 
     NAO MEXE NO CARRINHO NEM NA GARRA, DE PROPOSITO. O robo anda com o
     carrinho onde o bloco anterior o deixou, inclusive todo estendido;
     recolher so para andar seriam 12 idas e voltas de graca. A garra
-    chega aqui EMBAIXO, porque o guardar_bloco anterior ja a desceu -
-    fora o primeiro bloco da rodada, em que ela ainda vem levantada.
+    chega aqui EMBAIXO, porque o guardar_bloco anterior ja a desceu.
     """
-    destino_mm = cte.POSICAO_COLUNA[cor][indice_coluna]
     delta_mm = destino_mm - posicao_atual_mm
     if delta_mm != 0:
         m.andar(delta_mm, **ANDAR_BLOCOS)
@@ -258,16 +422,10 @@ def guardar_bloco(coluna_armazenagem):
     Como a volta e para um ANGULO ABSOLUTO, ela tambem reafirma a altura
     da garra depois de cada arremesso - a forca da subida nao deixa sobra
     para se acumular de um bloco para o outro.
-
-    Devolve o angulo em que a garra chegou NO TOPO, antes de descer. Na
-    prova ninguem usa; serve para o TESTE 3 mostrar ate onde o arremesso
-    levou a garra.
     """
     sv.selecionar_coluna(coluna_armazenagem)
     g.mover_garra(ARREMESSO_V, ARREMESSO_MS)
-    topo = g.angulo_garra()
     g.descer_garra()
-    return topo
 
 
 # =============================================================================
@@ -290,67 +448,91 @@ def pegar_blocos(leituras):
         carrinho : RECOLHIDO
         garra    : EM CIMA
 
-    O primeiro movimento e a zeragem do carrinho; o segundo ja e o
-    ir_ate_coluna do primeiro bloco.
+    A ABERTURA E A MESMA PARA OS 12 BLOCOS: zera o carrinho, estende ate
+    o fundo, zera a garra. So entao o laco comeca. O laco em si nao tem
+    caso especial nenhum - todo bloco e andar, estender, guardar.
 
-    A GARRA E ZERADA UMA VEZ SO, no primeiro bloco, e essa e a unica
-    descida que este laco faz por conta propria - porque so ali a garra
-    ainda esta levantada (a parte3 a entrega assim). A zeragem acontece
-    DEPOIS de o carrinho estender, com o robo parado na coluna, que e o
-    que o garra.py exige para ela ter curso livre ate o batente de baixo.
+    A GARRA E ZERADA UMA VEZ SO, aqui no comeco. E a unica vez em que ela
+    encosta no batente; dali em diante toda descida (dentro do
+    guardar_bloco) e uma volta ao mesmo angulo absoluto, um pouco antes
+    dele. Por isso a altura de pegar nao muda do primeiro para o decimo
+    segundo bloco e o motor nunca fica empurrando o fim do curso.
 
-    E a unica vez em que a garra encosta no batente; dali em diante toda
-    descida e uma volta ao mesmo angulo absoluto, um pouco antes dele.
-    Por isso a altura de pegar nao muda do primeiro para o decimo segundo
-    bloco e o motor nunca fica empurrando o fim do curso.
+    O CARRINHO ABRE E A GARRA DESCE AO MESMO TEMPO - sao motores
+    diferentes (A e D). O carrinho sai com wait=False e a zeragem da
+    garra corre por cima dele.
 
-    Percorre as colunas do MOSAICO na ordem de cte.ORDEM_RETIRADA (1, 3,
-    2: primeira, terceira, meio) - diferente da ordem em que foram lidas,
-    e diferente tambem da ordem em que serao ENTREGUES (ver
-    entregar_blocos.py). Dentro de cada coluna, os 4 blocos saem na mesma
-    ordem vertical em que foram lidos, e todos com o mesmo arremesso, ja
-    que caem todos naquela mesma coluna do robo.
+    MAS O CARRINHO SAI NA FRENTE, por ATRASO_GARRA_MS: com ele recolhido
+    a garra bate na estrutura do robo antes do fim do curso, e o zero
+    sairia alto - junto com todas as descidas da rodada (ver garra.py).
+    O atraso e o que preserva essa ordem sem serializar os dois.
+
+    O carrinho vai ate o FUNDO porque e o curso livre mais longo, que e
+    para o que o TEMPO_ZERAR_GARRA_MS foi calibrado.
+
+    O ROBO ANDA COM O CARRINHO ESTENDIDO ate a primeira coluna, e isso
+    esta certo: o proibido e move-lo DURANTE a andada, nao andar com ele
+    para fora (README, regra 8).
+
+    A ORDEM DE RETIRADA vem do planejar(): as 3 pilhas tem ordem fixa, e
+    ele escolhe o intercalamento de menor percurso entre elas. O robo vai
+    e volta pelo tapete - e o preco de as colunas serem pilhas.
+
+    DEVOLVE A ORDEM DE ENCHIMENTO das 3 colunas do robo, como
+    {coluna: [indices de celula, na ordem em que entraram]}. O
+    entregar_blocos esvazia cada coluna na ordem INVERSA a essa - elas
+    se comportam como pilha. Em rodada limpa e igual a
+    cte.COLUNAS_MOSAICO; o que muda e quando uma celula foi pulada.
+
+    O MOSAICO PEDE, O ROBO PEGA. Nao ha substituicao de cor: as 8 colunas
+    do tapete estao ao alcance, entao os 6 blocos de cada cor estao todos
+    disponiveis, e 12 pedidos nunca esgotam 24 alcancaveis. Celulas com
+    leitura ruim ou com cor pedida demais ficam de fora ja no planejar().
     """
     zerar_carrinho()
 
-    ja_pegos = {}
-    for cor in cte.CORES:
-        ja_pegos[cor] = 0
+    # CARRINHO E GARRA AO MESMO TEMPO. Sao motores diferentes (A e D),
+    # entao da para sobrepor: o carrinho sai com wait=False e a zeragem
+    # da garra, que e bloqueante, corre por cima dele.
+    #
+    # O ATRASO e o que mantem a ordem que importa: a garra so tem curso
+    # livre com o carrinho ja fora do batente. Sem ele os dois partiriam
+    # juntos e a garra bateria na estrutura do robo.
+    motor_A.run_target(V_CARRINHO, PROFUNDIDADES[2], wait=False)
+    wait(ATRASO_GARRA_MS)
+    g.zerar_garra(tempo_ms=TEMPO_ZERAR_GARRA_MS)
+
+    # O carrinho quase sempre chega antes da garra terminar, mas nao ha
+    # garantia - e o primeiro ir_ate_posicao nao pode comecar com ele
+    # ainda andando (README, regra 8).
+    while not motor_A.control.done():
+        wait(10)
 
     posicao_mm = 0          # encostado na parede: o zero de POSICAO_COLUNA
-    garra_zerada = False
+    carregadas = {1: [], 2: [], 3: []}
 
-    for coluna_armazenagem in cte.ORDEM_RETIRADA:
-        for indice in cte.COLUNAS_MOSAICO[coluna_armazenagem]:
-            cor = escolher_cor(leituras[indice], ja_pegos, posicao_mm)
-            if cor is None:
-                return      # acabaram os blocos alcancaveis de todas as cores
-            if cor != leituras[indice]:
-                print("cor", leituras[indice], "esgotada, trocando por", cor)
+    for destino_mm, indice_profundidade, indice_celula, cor in planejar(leituras):
+        coluna_armazenagem = coluna_de_armazenagem(indice_celula)
 
-            indice_coluna, indice_profundidade = coluna_e_profundidade(
-                ja_pegos[cor])
+        print(destino_mm, "mm -", cor, "-> coluna", coluna_armazenagem)
 
-            # 1. anda ate a coluna, com o carrinho onde estiver
-            posicao_mm = ir_ate_coluna(cor, indice_coluna, posicao_mm)
+        # 1. anda ate a coluna do tapete, com o carrinho onde estiver.
+        #    O delta pode ser NEGATIVO: o robo vai e volta pelo tapete,
+        #    porque as tres pilhas tem de ser enchidas em ordens que nao
+        #    cabem numa varredura so (ver planejar).
+        posicao_mm = ir_ate_posicao(destino_mm, posicao_mm)
 
-            # 2. ja parado na coluna: o carrinho vai ate a profundidade do
-            #    bloco. Mesma profundidade para as tres colunas de
-            #    armazenagem - quem as separa e o servo, no passo 3.
-            motor_A.run_target(V_CARRINHO, PROFUNDIDADES[indice_profundidade])
+        # 2. ja parado na coluna: o carrinho vai ate a profundidade do
+        #    bloco. Mesma profundidade para as tres colunas de
+        #    armazenagem - quem as separa e o servo, no passo 3.
+        motor_A.run_target(V_CARRINHO, PROFUNDIDADES[indice_profundidade])
 
-            # 2b. SO NO PRIMEIRO BLOCO: a garra ainda esta em cima, entao
-            #     desce aqui - e essa descida e a zeragem, a unica ida ao
-            #     batente da rodada. Do segundo bloco em diante ela ja
-            #     chega embaixo, porque o guardar_bloco anterior a desceu.
-            if not garra_zerada:
-                g.zerar_garra(tempo_ms=TEMPO_ZERAR_GARRA_MS)
-                garra_zerada = True
+        # 3. servo na coluna certa, arremessa dali mesmo e desce a
+        #    garra de volta
+        guardar_bloco(coluna_armazenagem)
+        carregadas[coluna_armazenagem].append(indice_celula)
 
-            # 3. servo na coluna certa, arremessa dali mesmo e desce a
-            #    garra de volta
-            guardar_bloco(coluna_armazenagem)
-            ja_pegos[cor] += 1
+    return carregadas
 
 
 # =============================================================================
@@ -358,35 +540,35 @@ def pegar_blocos(leituras):
 # =============================================================================
 # Mude o numero de TESTE la embaixo e rode este arquivo com F5.
 #
-#   1 -> passeia pelas 8 colunas do tapete   -> ajusta POSICAO_COLUNA
-#   2 -> as 3 profundidades do carrinho      -> ajusta PROFUNDIDADES
-#   3 -> pegar + guardar pelos botoes do EV3 -> ajusta ARREMESSO_V/_MS
-#   4 -> a retirada completa, com a lista de exemplo do constantes.py
+#   1 -> passeia pelas 8 colunas do tapete -> ajusta POSICAO_COLUNA
+#   2 -> as 3 profundidades do carrinho    -> ajusta PROFUNDIDADES
+#   3 -> a retirada completa, com a lista de exemplo do constantes.py
 #
 # A ORDEM IMPORTA: comece pelo 1 (o robo tem de parar no lugar certo
-# antes de tudo), depois 2, depois 3.
+# antes de tudo), depois 2, e so entao rode a retirada inteira.
+#
+# O ARREMESSO NAO TEM TESTE PROPRIO: e um par so (ARREMESSO_V/_MS) para
+# os 12 blocos, entao nao ha nada para comparar entre um bloco e outro -
+# ajuste os dois numeros e rode o TESTE 3. Se o bloco viaja certo mas cai
+# na coluna errada, o problema e o angulo do servo, no
+# arduino_servos.ino: rode o servos.py para conferir isso separado.
 
-def _esperar_botao(botoes=(Button.LEFT, Button.CENTER, Button.RIGHT,
-                           Button.UP, Button.DOWN)):
+def _esperar_centro():
     """
-    Espera um aperto NOVO de um dos `botoes` do EV3 e devolve qual foi.
+    Espera um aperto NOVO do botao CENTRAL do EV3.
 
     Primeiro espera SOLTAR o que ja estivesse pressionado na entrada,
-    depois espera um aperto e espera ele soltar antes de devolver - assim
-    um dedo segurando o botao nao dispara varios ciclos seguidos.
+    depois espera o aperto e espera ele soltar antes de devolver - assim
+    um dedo segurando o botao nao dispara varias paradas seguidas.
 
     O botao fisico VOLTAR nao entra aqui: ele para o programa inteiro, e
     e o jeito de sair da calibracao a qualquer momento.
     """
     while ev3.buttons.pressed():          # solta o que estava preso
         wait(10)
-    while True:
-        pressionados = ev3.buttons.pressed()
-        for b in botoes:
-            if b in pressionados:
-                while ev3.buttons.pressed():
-                    wait(10)
-                return b
+    while Button.CENTER not in ev3.buttons.pressed():
+        wait(10)
+    while ev3.buttons.pressed():
         wait(10)
 
 
@@ -396,7 +578,7 @@ def _teste_1_colunas():
     fisica (branco1, branco2, verde1, ... amarelo2). NAO mexe em carrinho
     nem em garra - so anda.
 
-    Reaproveita o proprio ir_ate_coluna, a mesma funcao que a prova usa,
+    Reaproveita o proprio ir_ate_posicao, a mesma funcao que a prova usa,
     entao o que este teste mede e exatamente o movimento que vai
     acontecer na hora de verdade, ganho por ganho.
 
@@ -411,12 +593,12 @@ def _teste_1_colunas():
     posicao_mm = 0
     for cor in cte.CORES:
         for indice_coluna in (0, 1):
-            posicao_mm = ir_ate_coluna(cor, indice_coluna, posicao_mm)
+            alvo_mm = cte.POSICAO_COLUNA[cor][indice_coluna]
+            posicao_mm = ir_ate_posicao(alvo_mm, posicao_mm)
             ev3.speaker.beep()
-            print(cor, "- coluna", indice_coluna + 1, "- alvo",
-                  cte.POSICAO_COLUNA[cor][indice_coluna], "mm")
+            print(cor, "- coluna", indice_coluna + 1, "- alvo", alvo_mm, "mm")
             print("  meca e aperte o botao CENTRAL para continuar")
-            _esperar_botao((Button.CENTER,))
+            _esperar_centro()
     print("fim - as 8 colunas foram visitadas")
 
 
@@ -430,8 +612,8 @@ def _teste_2_profundidades():
           corrija PROFUNDIDADES[0] e some a mesma diferenca nas outras
           duas (o passo entre elas continua valendo);
       a primeira certa e a terceira errada -> o PASSO esta errado:
-          os blocos sao igualmente espacados, entao 1->2 e 2->3 tem de
-          ser a mesma diferenca;
+          os blocos sao igualmente espacados, entao perto->meio e
+          meio->fundo tem de ser a mesma diferenca;
       o motor fica zumbindo parado na do fundo -> o alvo passou do fim do
           curso mecanico: diminua PROFUNDIDADES[2].
     """
@@ -441,103 +623,59 @@ def _teste_2_profundidades():
         print("profundidade", indice, "- alvo", alvo,
               "graus -> parou em", motor_A.angle())
         print("  meca e aperte o botao CENTRAL")
-        _esperar_botao((Button.CENTER,))
+        _esperar_centro()
+
     motor_A.run_target(V_CARRINHO, 0)
 
 
-def _teste_3_arremesso(indice_profundidade=2):
-    """
-    Calibracao INTERATIVA do arremesso e do servo, pelos botoes do EV3. O
-    robo nao anda: fica parado e voce dispara o ciclo de pegar + guardar
-    quantas vezes quiser, escolhendo no botao a coluna de destino, e
-    vendo onde o bloco cai antes de mexer nos numeros.
-
-    O QUE SE AJUSTA AQUI. O arremesso e UM SO para as tres colunas
-    (ARREMESSO_V / ARREMESSO_MS), porque quem escolhe a coluna e o servo.
-    Se o bloco cai perto ou longe demais DAS TRES, e o arremesso; se ele
-    viaja certo mas entra na coluna errada, e o angulo do servo - e esse
-    se ajusta no arduino_servos.ino, nao aqui.
-
-    BOTOES:
-
-        DOWN   -> guarda na coluna 1
-        CENTER -> guarda na coluna 2
-        UP     -> guarda na coluna 3
-        LEFT   -> zera a garra de novo (re-conferir a descida ao batente)
-        RIGHT  -> sai
-        VOLTAR -> para o programa (funciona a qualquer momento)
-
-    COMO USAR: robo parado, um bloco ao alcance da garra na profundidade
-    escolhida. Escolha a coluna no botao, veja onde caiu, corrija o
-    numero e repita. Entre um arremesso e outro o carrinho fica onde esta
-    (estendido), igual a prova - so reponha o bloco.
-
-    `indice_profundidade` : 0 perto, 1 meio, 2 fundo. CONFIRA NAS TRES -
-    o mesmo par de arremesso tem de servir as tres, porque o bloco e
-    lancado de onde o carrinho parou. Comece pelo fundo, a estendida mais
-    longa.
-    """
-    print("=== arremesso - profundidade", indice_profundidade, "===")
-    print("DOWN=col1  CENTER=col2  UP=col3  LEFT=re-zerar  RIGHT=sair")
-
-    # A ACELERACAO do motor_D e o que decide se o tempo do arremesso da
-    # para a garra chegar na velocidade pedida: o minimo e
-    # 2 x velocidade / aceleracao.
-    aceleracao = g.MOTOR_GARRA.control.limits()[1]
-    print("  arremesso:", ARREMESSO_V, "graus/s por", ARREMESSO_MS,
-          "ms   (minimo", 2000 * ARREMESSO_V // aceleracao, "ms )")
-
-    zerar_carrinho()
-    motor_A.run_target(V_CARRINHO, PROFUNDIDADES[indice_profundidade])
-    g.zerar_garra(tempo_ms=TEMPO_ZERAR_GARRA_MS)
-
-    while True:
-        botao = _esperar_botao()
-
-        if botao == Button.RIGHT:
-            print("saindo")
-            sv.repouso()
-            return
-
-        if botao == Button.LEFT:
-            g.zerar_garra(tempo_ms=TEMPO_ZERAR_GARRA_MS)
-            print("garra zerada, em", g.angulo_garra(), "graus")
-            continue
-
-        coluna = {Button.DOWN: 1, Button.CENTER: 2, Button.UP: 3}[botao]
-        print("--- coluna", coluna, "---")
-        topo = guardar_bloco(coluna)
-        print("  subiu ate", topo, "graus")
-        print("  e voltou a", g.angulo_garra(), "graus")
-        print("  reponha o bloco e escolha a proxima coluna")
-
-
-def _teste_4_rodada():
+def _teste_3_rodada():
     """
     Retirada completa com a lista de exemplo do constantes.py, para
     conferir a logica de ordem sem depender de uma leitura real.
 
     Largada da prova: robo encostado na parede, carrinho recolhido, garra
-    EM CIMA. O pegar_blocos zera o carrinho, sai andando para a primeira
-    coluna e zera a garra la.
+    EM CIMA. O pegar_blocos zera o carrinho, abre e desce a garra ao mesmo
+    tempo, e so entao sai andando para a primeira coluna.
+
+    Imprime o PLANO antes de sair do lugar - da para conferir a ordem no
+    terminal, com o robo parado, antes de deixar ele executar. As posicoes
+    NAO saem em ordem crescente, e nem podem: cada coluna do robo e uma
+    pilha com ordem de enchimento fixa, entao o robo vai e volta. O que o
+    planejar() minimiza e a soma dessas idas e vindas.
     """
-    pegar_blocos(cte.LEITURAS_TESTE)
+    print("plano da retirada (posicao mm, profundidade, celula, cor):")
+    for destino_mm, profundidade, celula, cor in planejar(cte.LEITURAS_TESTE):
+        print("  ", destino_mm, "mm  prof", profundidade,
+              " celula", celula, " ", cor,
+              " -> coluna", coluna_de_armazenagem(celula))
+
+    carregadas = pegar_blocos(cte.LEITURAS_TESTE)
+
+    # CONFERE AS PILHAS: cada coluna tem de ter sido enchida exatamente na
+    # ordem de cte.COLUNAS_MOSAICO (menos as celulas que foram puladas).
+    # Se isto quebrar, a entrega sai com os blocos em celulas trocadas.
+    print("pilhas (ordem de enchimento x ordem exigida):")
+    for coluna in (1, 2, 3):
+        exigida = []
+        for celula in cte.COLUNAS_MOSAICO[coluna]:
+            if celula in carregadas[coluna]:
+                exigida.append(celula)
+        ok = carregadas[coluna] == exigida
+        print("  coluna", coluna, ":", carregadas[coluna],
+              "OK" if ok else ("QUEBRADO, esperado " + str(exigida)))
+        if not ok:
+            ev3.speaker.beep(200, 500)
 
 
 if __name__ == "__main__":
 
-    TESTE = 4
-
-    # So usado no TESTE 3: 0 perto, 1 meio, 2 fundo.
-    PROFUNDIDADE = 2
+    TESTE = 3
 
     if TESTE == 1:
         _teste_1_colunas()
     elif TESTE == 2:
         _teste_2_profundidades()
-    elif TESTE == 3:
-        _teste_3_arremesso(PROFUNDIDADE)
     else:
-        _teste_4_rodada()
+        _teste_3_rodada()
 
     ev3.speaker.beep()

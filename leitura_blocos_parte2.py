@@ -105,7 +105,7 @@ V_CARRINHO = 1000     # graus/s do motor_A na varredura
 # Roda uma vez, antes da varredura. Abrir contra o batente e mais
 # confiavel que confiar num alvo em graus: a referencia vira mecanica e
 # nao acumula a folga da correia.
-V_ABRIR     = 1000     # graus/s contra o batente do fim do curso
+V_ABRIR     = 800     # graus/s contra o batente do fim do curso
 FORCA_ABRIR = 80      # duty_limit em %
 
 # --- Percurso ---
@@ -174,7 +174,7 @@ def ler_mosaico(passos=PASSOS):
     motor_A.run_angle(V_CARRINHO, 950)
 
     lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.7, kd=6.5, v_max=1000,
-                     desacel=2000, tempo_ms=5000, ignorar_mm=160)
+                     desacel=1000, tempo_ms=5000, ignorar_mm=140)
     
     motor_A.run_until_stalled(V_ABRIR, then=Stop.HOLD, duty_limit=FORCA_ABRIR)
     motor_A.reset_angle(0)

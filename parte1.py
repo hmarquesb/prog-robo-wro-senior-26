@@ -60,7 +60,7 @@ def executar():
     m.girar_pivo(motor_B, 45, v_max=900, acel=800, desacel=1600, kp=2.4, kd=7.6)
     
 
-    motor_A.run_angle(1000,370)#370
+    motor_A.run_angle(1000,430)#370
     
 
     lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.2, kd=13, v_max=1000, desacel=4000,
@@ -100,7 +100,7 @@ def executar():
     m.girar_pivo(motor_C, -180,  v_max=900, acel=800, desacel=1600, kp=3, kd=8.7) 
     
     
-    lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.2, kd=13, v_max=900, desacel=4000,
+    lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.2, kd=13, v_max=900, desacel=1000,
                          tempo_ms=5000, ignorar_mm=200)
 
     m.andar(60, v_max=700, v_min=200, acel=600, desacel=1800,
