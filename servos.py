@@ -30,11 +30,11 @@ Arduino so devolve 0 quando o curso acabou. E o mesmo padrao do
 esperar_garra - dispara, espera no relogio, e desiste com apito se
 estourar o timeout, em vez de travar a rodada.
 
-O SKETCH PRECISA CONHECER OS TRES COMANDOS. Hoje o arduino_servos.ino so
-trata 0x10 (acionar) e 0x11 (repouso); as colunas 2 e 3 (0x12 e 0x13)
-tem de ser acrescentadas la, senao caem no default e o servo nao se mexe.
-Enquanto isso nao acontece, este modulo funciona e avisa - o robo perde a
-selecao daquele bloco, mas termina a rodada.
+O SKETCH CONHECE OS QUATRO COMANDOS (0x10, 0x12, 0x13 e 0x11), um angulo
+para cada. Se um byte cair no default de la, o sketch segura o status em
+"ocupado" ate estourar o SERVO_TIMEOUT_MS - o apito do esperar_servo e o
+sinal de que os dois lados sairam do contrato. O robo perde a selecao
+daquele bloco, mas termina a rodada.
 
 FALHA DE I2C NAO PARA A PROVA. Cabo solto, pull-up ruim ou Nano
 reiniciando levantam OSError no meio do barramento. Aqui isso vira um

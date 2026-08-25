@@ -179,6 +179,17 @@ VARREDURA_VELOCIDADE = 120
 #     ESCRITA : 1 byte de comando (os SERVO_CMD_* abaixo)
 #     LEITURA : 1 byte de status - 1 = ainda movendo, 0 = terminou
 #
+# QUEM PEDIR 2 BYTES recebe [status, SERVO_ASSINATURA]. O segundo byte
+# nao faz parte da prova: serve para os arquivos de diagnostico provarem
+# que quem respondeu foi o Arduino, e nao uma linha presa em zero (que
+# devolve 0 para tudo, inclusive para enderecos onde nao ha ninguem).
+# Ler 1 byte continua devolvendo so o status, entao o servos.py nao muda.
+#
+# ATENCAO: leitura de 2 bytes SO funciona na forma read(reg=X, length=2).
+# Com reg=None o driver do EV3 nao sabe ler mais de um byte e levanta
+# ValueError - que e diferente de OSError: ValueError quer dizer "essa
+# operacao nem existe", nao "a conversa falhou".
+#
 # MORA AQUI, e nao no servos.py, porque estes numeros tem de bater byte a
 # byte com o sketch do Arduino - sao um contrato entre dois programas, e
 # o teste_arduino.py os repete de proposito para rodar na bancada sem o
@@ -190,13 +201,16 @@ SERVO_ENDERECO = 0x04     # 7 bits dos dois lados, sem deslocar
 # Comando por COLUNA DE ARMAZENAGEM (1, 2 ou 3): poe o seletor na boca da
 # coluna pedida. Tem de bater com o switch do arduino_servos.ino.
 #
-# ATENCAO: hoje o sketch so conhece 0x10 (acionar) e 0x11 (repouso). Os
-# comandos das colunas 2 e 3 PRECISAM SER ACRESCENTADOS LA - sem isso eles
-# caem no default e o servo nao se mexe.
+# O sketch trata os quatro, um angulo para cada. Um byte que nao exista
+# la cai no default, e o sketch segura o status em "ocupado" de proposito
+# para o EV3 apitar o timeout em vez de achar que deu certo.
 SERVO_CMD_COLUNA_1 = 0x10
 SERVO_CMD_COLUNA_2 = 0x12
 SERVO_CMD_COLUNA_3 = 0x13
 SERVO_CMD_REPOUSO  = 0x11
+
+# Segundo byte da resposta (ver acima). So os diagnosticos usam.
+SERVO_ASSINATURA = 0x5A
 
 SERVO_CMD = {
     1: SERVO_CMD_COLUNA_1,
@@ -206,7 +220,8 @@ SERVO_CMD = {
 
 # Rede de seguranca da espera: se em SERVO_TIMEOUT_MS o Arduino nao disser
 # que terminou, o programa desiste, apita e SEGUE. Tem de caber o curso
-# inteiro do servo com folga (o TEMPO_CURSO do sketch e 400 ms).
+# inteiro do servo com folga (o sketch calcula o tempo pelo curso, a
+# TEMPO_POR_GRAU ms por grau).
 SERVO_TIMEOUT_MS = 2000
 
 # Quantas vezes tentar de novo quando o barramento nao responde. A

@@ -22,8 +22,11 @@ ANTES DE RODAR
 --------------
   1. arduino_servos.ino ja gravado no Nano, e o Nano ligado
      (LED de power aceso).
-  2. Cabo do EV3 na porta S1, conferido no multimetro.
-  3. Pull-ups de 4,7k ligados ao pino 4 do EV3, nao ao 5V do Arduino.
+  2. Cabo do EV3 na porta S1, conferido no multimetro - e o USB do
+     Arduino DESLIGADO. Com os dois juntos o Nano esquenta (ver o
+     cabecalho do arduino_servos.ino).
+  3. Pull-ups de 82k (valor da documentacao oficial do EV3) ligados ao
+     pino 4 do EV3, nao ao 5V do Arduino.
   4. Servo no pino D9 do Nano, alimentado pela bateria de 4x AA (6V) -
      NAO pelo 5V do Nano.
   5. GND comum entre EV3, Arduino e bateria dos servos. Sem isso o servo
@@ -44,11 +47,11 @@ from pybricks.tools import wait, StopWatch
 PORTA_ARDUINO = Port.S1
 ENDERECO = 0x04            # 7 bits dos dois lados, sem deslocar
 
-CMD_ACIONA  = 0x10
+CMD_COLUNA_1 = 0x10
 CMD_REPOUSO = 0x11
 CMD_INVALIDO = 0xFF        # nao existe no switch do sketch, de proposito
 
-# TEMPO_CURSO do sketch e 400 ms. Esperamos um pouco mais que isso.
+# O sketch calcula o tempo pelo curso (TEMPO_POR_GRAU). Esperamos com folga.
 ESPERA_CURSO = 600
 TIMEOUT = 2000             # ms; se passar disso, algo travou
 CICLOS = 3
@@ -110,7 +113,7 @@ def _teste_1_conversa():
       1 - o Arduino responde?          (fiacao / endereco)
       2 - ele entendeu um comando?     (le 1 = "estou movendo")
       3 - ele terminou o movimento?    (le 0 depois de esperar)
-      4 - ele sabe recusar lixo?       (comando invalido = continua 0)
+      4 - ele sabe recusar lixo?       (comando invalido = fica ocupado)
 
     Passar nos 4 significa que os dois sentidos da conversa funcionam e
     que o valor lido e resposta de verdade, nao ruido do barramento.
@@ -135,7 +138,7 @@ def _teste_1_conversa():
 
     # Comando valido faz o sketch marcar fim_movimento, entao o status
     # tem que virar 1 (ocupado) na hora.
-    enviar(CMD_ACIONA)
+    enviar(CMD_COLUNA_1)
     wait(20)
     status = ler_status()
 
@@ -158,16 +161,16 @@ def _teste_1_conversa():
 
     msg("3 ok: livre=0")
 
-    # Comando que nao existe cai no default do sketch, que NAO mexe em
-    # fim_movimento. Se mesmo assim vier 1, o que estamos lendo nao e
-    # resposta de verdade.
+    # Comando que nao existe cai no default do sketch, que segura o
+    # status em OCUPADO de proposito. Se vier 0, o Nano esta rodando uma
+    # versao antiga do sketch - e ai as colunas 2 e 3 nao existem la.
     enviar(CMD_INVALIDO)
     wait(20)
     status = ler_status()
 
-    if status != 0:
+    if status != 1:
         falhou("4 FALHOU: leu " + str(status))
-        msg("resposta suspeita")
+        msg("sketch antigo")
     else:
         msg("4 ok")
         msg("I2C FUNCIONA")
@@ -198,14 +201,14 @@ def _mover(comando, nome):
 def _teste_2_movimento():
     """
     O QUE OBSERVAR
-      - O curso e o angulo certo? Se nao, ajustar ANG_ACIONADO no
+      - O curso e o angulo certo? Se nao, ajustar ANG_COLUNA_1 no
         arduino_servos.ino (o 90 mecanico quase nunca e o 90 do servo).
       - O servo fica zumbindo parado no fim do curso? E o servo forcando
-        contra o batente - ANG_ACIONADO passou do ponto.
+        contra o batente - ANG_COLUNA_1 passou do ponto.
 
-    O tempo impresso e o TEMPO_CURSO declarado no sketch (400 ms), nao o
-    tempo real do servo. Para calibrar de verdade: cronometrar o servo no
-    olho e ajustar TEMPO_CURSO no arduino_servos.ino.
+    O tempo impresso e o que o SKETCH calcula pelo curso, nao o tempo
+    real do servo. Para calibrar de verdade: cronometrar o servo no olho
+    e ajustar TEMPO_POR_GRAU no arduino_servos.ino.
     """
     msg("Servo:", CICLOS, "ciclos")
 
@@ -216,7 +219,7 @@ def _teste_2_movimento():
     wait(500)
 
     for _ in range(CICLOS):
-        if not _mover(CMD_ACIONA, "aciona"):
+        if not _mover(CMD_COLUNA_1, "aciona"):
             return
         wait(700)          # tempo de olhar o servo parado no fim do curso
 

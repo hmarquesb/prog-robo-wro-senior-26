@@ -46,6 +46,9 @@ Fora do caminho da prova:
 ```
 diagnostico.py              descobre em que import um programa quebra
 teste_arduino.py            a conversa EV3 ↔ Arduino e o servo, na bancada
+diagnostico_i2c.py          relatório completo da conversa I2C, para copiar e mandar
+teste_escrita_i2c.py        que forma de leitura/escrita o driver do EV3 aceita
+arduino_servos/             o sketch do Arduino Nano (não vai para o EV3)
 aulapybricks.py             8 lições de Pybricks, material de estudo
 adaptador_horn_lego.scad    peça 3D: horn do servo MG90S → eixo LEGO
 suporte_mg90s.scad          peça 3D: suporte do servo
