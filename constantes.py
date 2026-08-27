@@ -233,6 +233,57 @@ SERVO_TENTATIVAS = 3
 # 6. TAPETE DE BLOCOS
 # =============================================================================
 
+# --- ATE ONDE a garra levanta para PRENDER o bloco, sem arremessa-lo ---
+# O movimento da garra e PARTIDO EM DOIS. Com o carrinho estendido em
+# cima do bloco, ela levanta SO ATE AQUI e para - o bastante para prender,
+# nao para jogar. O carrinho volta com o bloco preso, e so entao ela
+# termina o movimento, que e o que arremessa.
+#
+# E um ANGULO ABSOLUTO, em graus do motor_D contados do batente que o
+# zerar_garra marcou - a mesma referencia do g.ANGULO_ABAIXADA, de onde
+# ela sai. Tem de ser MAIOR que ele.
+#
+#   o bloco escapa quando o carrinho volta  -> AUMENTE
+#   a garra ja joga o bloco aqui            -> diminua
+#
+# COMO MEDIR, em vez de adivinhar: o teste_pegar_fileiras.py imprime o
+# angulo em que a garra parou depois de fechar em cima do bloco. E esse
+# numero, ou um pouco menos.
+#
+# VALOR PROVISORIO - nunca foi medido neste mecanismo.
+ANGULO_PEGAR = 600
+
+# --- ONDE o carrinho para para a garra jogar o bloco na coluna ---
+# Depois de alcancar o bloco, o carrinho volta PARA ESTA POSICAO e so
+# entao a garra arremessa. Vale para os 12 blocos.
+#
+# E uma POSICAO ABSOLUTA, em graus do motor_A contados do batente de casa
+# - a mesma referencia das PROFUNDIDADES do pegar_blocos.py. Nao e "volte
+# tanto": e "va para o grau tal".
+#
+# CONSEQUENCIA, e e o motivo de ser absoluta: os 12 blocos sao
+# arremessados EXATAMENTE DO MESMO LUGAR, venham eles do fundo, do meio ou
+# da frente. A distancia ate a boca das colunas para de mudar com a
+# profundidade, e por isso um unico par de arremesso (ARREMESSO_V /
+# ARREMESSO_MS, no pegar_blocos.py) serve para todos.
+#
+#   o bloco nao chega na boca da coluna    -> AUMENTE (arremessa de mais
+#                                             longe do robo)
+#   o bloco passa da coluna                -> diminua
+#
+# OS DOIS LIMITES DESTE NUMERO:
+#
+#   nao pode ser ~0 - com o carrinho no batente de casa a garra bate na
+#   estrutura do robo antes do fim do curso (ver garra.py), e logo depois
+#   do arremesso vem uma descida da garra;
+#
+#   nao pode cair em cima de um bloco que ainda esta la - a retirada vai
+#   do fundo para a frente, entao as posicoes da FRENTE seguem ocupadas.
+#   Ficar mais para dentro que PROFUNDIDADES[0] resolve.
+#
+# None desliga: o robo arremessa de onde pegou, sem mover o carrinho.
+POSICAO_ARREMESSO = 650
+
 # --- Distancia (mm) que o robo anda, A PARTIR DA PAREDE, ate ficar
 # alinhado de lado com cada uma das 8 colunas verticais do tapete:
 # [coluna mais proxima do inicio, coluna irma] de cada cor.
@@ -245,10 +296,10 @@ SERVO_TENTATIVAS = 3
 # arremesso - tudo o mais depende de o robo parar no lugar certo. Rode
 # pegar_blocos.py no TESTE 1. ---
 POSICAO_COLUNA = {
-    Color.WHITE:  [90, 150],
+    Color.WHITE:  [80, 150],
     Color.GREEN:  [240, 305],
-    Color.BLUE:   [400, 480],
-    Color.YELLOW: [570, 625],
+    Color.BLUE:   [405, 480],
+    Color.YELLOW: [565, 630],
 }
 
 # Mesma ordem fisica do tapete. Existe como tupla (e nao so como as
@@ -287,7 +338,7 @@ BLOCOS_POR_COR = len(ORDEM_NA_COR)
 
 # A ORDEM ENTRE AS COLUNAS DO ROBO NAO MORA MAIS AQUI. Existia um
 # ORDEM_RETIRADA = (1, 3, 2), que mandava encher uma coluna de cada vez.
-# As colunas continuam sendo pilhas, e a ordem DENTRO de cada uma
+# As colunas continuam sendo filas, e a ordem DENTRO de cada uma
 # continua fixa (e o COLUNAS_MOSAICO abaixo) - o que ficou livre foi o
 # INTERCALAMENTO entre elas, e quem escolhe o de menor percurso e o
 # pegar_blocos.planejar().
@@ -298,31 +349,39 @@ BLOCOS_POR_COR = len(ORDEM_NA_COR)
 # =============================================================================
 
 # Indices de `leituras` (a lista de 12 cores da varredura) agrupados por
-# coluna do mosaico, EM ORDEM DE FILEIRA (1, 2, 3, 4).
+# coluna do mosaico, NA ORDEM EM QUE A COLUNA DO ROBO TEM DE SER ENCHIDA:
+# fileira 4 primeiro, fileira 1 por ultimo.
 #
-# Sai direto da ordem da varredura (leitura_blocos_parte2.py), que le uma
-# COLUNA de cada vez, comecando pela DIREITA:
+# POR QUE DA FILEIRA 4 PARA A 1 - as duas coisas que mandam:
+#
+#   1. as colunas do robo sao FILA, nao pilha: o primeiro bloco que entra
+#      e o primeiro que sai;
+#   2. a entrega percorre o mosaico da FILEIRA 4 para a 1.
+#
+#   Numa fila a ordem de entrada E a ordem de saida. Logo a ordem de
+#   enchimento tem de ser exatamente a ordem de entrega: 4, 3, 2, 1.
+#
+# Os indices saem da ordem da varredura (leitura_blocos_parte2.py), que
+# le uma COLUNA de cada vez, comecando pela DIREITA:
 #
 #     indice :  0  1  2  3 |  4  5  6  7 |  8  9 10 11
 #     coluna :  3  3  3  3 |  2  2  2  2 |  1  1  1  1
 #     fileira:  1  2  3  4 |  4  3  2  1 |  1  2  3  4
 #
-# A coluna 2 aparece invertida abaixo porque e lida DE VOLTA, da fileira
-# 4 para a 1 - mas a lista aqui esta sempre na ordem de fileira crescente,
-# igual as outras duas.
+# Cruzando as duas tabelas, a fileira 4 de cada coluna e o indice 11 (col
+# 1), 4 (col 2) e 3 (col 3) - e sao esses que aparecem primeiro abaixo. A
+# coluna 2 e a unica que sai em ordem crescente, porque foi lida de volta.
 #
 # MORA AQUI PORQUE SAO DOIS PROGRAMAS: diz ao pegar_blocos em que coluna
 # do robo guardar cada bloco, e ao entregar_blocos de qual coluna tira-lo.
 # Duas copias um dia divergem, e ai os blocos saem em celulas trocadas.
 #
-# MEXEU AQUI, mexeu na varredura ou no FILEIRAS do entregar_blocos.py?
-# Rode o TESTE 1 do entregar_blocos.py - ele confere, sem o robo se
-# mexer, se as colunas continuam esvaziando na ordem inversa a que foram
-# enchidas.
+# MEXEU AQUI, mexeu na varredura ou na ordem da entrega? As tres tem de
+# andar juntas.
 COLUNAS_MOSAICO = {
-    1: [8, 9, 10, 11],
-    2: [7, 6, 5, 4],
-    3: [0, 1, 2, 3],
+    1: [11, 10, 9, 8],   # fileiras 4, 3, 2, 1
+    2: [4, 5, 6, 7],     # fileiras 4, 3, 2, 1  (lida de volta)
+    3: [3, 2, 1, 0],     # fileiras 4, 3, 2, 1
 }
 
 

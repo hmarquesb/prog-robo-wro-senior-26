@@ -69,7 +69,7 @@ def executar():
                     kp=2.5, kd=3.5)
     
 
-    motor_A.run_angle(-1000, 300, wait=False)#300#desce o quadr. ao mesmo tempo q gira 
+    motor_A.run_angle(-1000, 300, wait=False)#300#sobe o quadr. ao mesmo tempo q gira 
     wait(120)
     m.girar_eixo(-90, v_max=700, desacel=1200, kp=2.5, kd=7)
 

@@ -39,9 +39,11 @@ Nao mexa na garra aqui: ela ja chega em cima e e assim que tem de ficar.
 Os numeros deste trecho ficam logo abaixo, neste arquivo.
 """
 
+from pybricks.tools import wait
+
 import movimento as m
 import linha as lin
-from setup import ev3, motor_A, motor_C
+from setup import ev3, motor_A, motor_C,motor_B
 
 
 # =============================================================================
@@ -65,16 +67,19 @@ def executar():
     """
     motor_A.run_angle(1000, 510)
 
-    lin.seguir_linha(parar_se=[lin.cruzamento()], kp=2.5, kd=11, v_max=800, desacel=500,
+    lin.seguir_linha(parar_se=[lin.cruzamento()], kp=2.2, kd=11, v_max=800, desacel=500,
                          tempo_ms=1500, ignorar_mm=250)
-    m.andar(70, v_max=150, v_min=100, acel=1100, desacel=1100, kp=2.5, kd=3.5)
+    m.andar(165, v_max=500, v_min=100, acel=600, desacel=900, kp=2.5, kd=3.5)
     
-    m.girar_pivo(motor_C, -90,  v_max=1000, acel=800, desacel=1600, kp=2.9, kd=6.9)
     
-    motor_A.run_angle(-1000, 750, wait=False)
+    motor_A.run_angle(-1000, 650, wait=False)
+    m.girar_pivo(motor_B, -145,  v_max=1000, acel=800, desacel=1400, kp=2.2, kd=7.33)
+    while not motor_A.control.done():
+        wait(10)
+    m.girar_pivo(motor_C, 55, v_max=1000, acel=800, desacel=1400, kp=2.2, kd=7.33)
 
-    m.andar(-420, v_max=1000, v_min=200, acel=1100, desacel=1100, kp=2.5, kd=3.5)
-    m.andar_por_tempo(500, 300,frente=False)
+    m.andar(-100, v_max=800, v_min=100, acel=600, desacel=900, kp=2.5, kd=3.5)
+    m.andar_por_tempo(500, -200)
 
 
 if __name__ == "__main__":

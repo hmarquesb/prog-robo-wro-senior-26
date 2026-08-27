@@ -29,6 +29,11 @@ delas estao comentadas ate ficarem prontas):
        equivalente do parte3, na outra direcao. E o que poe o robo em
        cima da FILEIRA 4, que e de onde o entregar_blocos comeca (ele
        entrega de costas, da fileira 4 para a 1).
+       PARCIAL: entregar_blocos_parte4.py ja faz o REALINHAMENTO contra a
+       parede (zera o erro de odometria que o pegar_blocos acumula
+       andando de coluna em coluna). Falta o resto do percurso ate a
+       fileira 4 - complete dentro do proprio
+       entregar_blocos_parte4.executar().
     3. a MISSAO DO QUADRILATERO TRASEIRO. Falta decidir ONDE na rodada
        ele desce. Ele e acionado pelo mesmo motor_A do carrinho, entao
        so pode se mexer com o robo parado e com o carrinho recolhido -
@@ -44,8 +49,10 @@ from setup import ev3
 import parte1
 import leitura_blocos_parte2
 import parte3
+import entregar_blocos_parte4
 from pegar_blocos import pegar_blocos
-from entregar_blocos import entregar_blocos
+#from entregar_blocos import entregar_blocos   # em reescrita - ver
+                                               # entregar_blocos_parte4.py
 
 
 # --- 1. Percurso ate o mosaico -----------------------------------------
@@ -66,22 +73,24 @@ parte3.executar()
 # O proprio pegar_blocos zera o carrinho contra o batente antes do
 # primeiro bloco - e dali que saem as tres profundidades.
 #
-# Devolve a ORDEM EM QUE AS 3 COLUNAS DO ROBO FORAM ENCHIDAS. A entrega
-# precisa disso: cada coluna e uma pilha, e tem de ser esvaziada na ordem
-# inversa a que foi enchida.
-carregadas = pegar_blocos(leituras)
+# Devolve a ORDEM EM QUE AS 3 COLUNAS DO ROBO FORAM ENCHIDAS (a entrega
+# precisa disso: cada coluna e uma fila, esvaziada na ordem inversa a que
+# foi enchida) E onde o robo PAROU no tapete - a etapa 5 usa essa posicao
+# para saber quanto falta andar ate a parede, em vez de supor o pior caso.
+carregadas, posicao_mm = pegar_blocos(leituras)
 print("colunas carregadas:", carregadas)
 
 # --- 5. Volta ao mosaico -----------------------------------------------
-# NAO EXISTE AINDA. Falta o percurso que leva o robo do tapete de blocos
-# de volta para cima da FILEIRA 4 do mosaico - o parte3 ao contrario.
-# Escreva num arquivo proprio (parte4.py) e chame aqui, como as outras
-# partes; nao cole a sequencia dentro deste arquivo.
+# PARCIAL: por enquanto so reencosta o robo na parede do tapete de blocos,
+# zerando o erro de odometria que a etapa 4 acumulou. Falta o resto do
+# percurso ate a FILEIRA 4 do mosaico - complete dentro de
+# entregar_blocos_parte4.executar(), nao aqui.
+entregar_blocos_parte4.executar(posicao_mm)
 
 # --- 6. Entrega dos blocos ---------------------------------------------
-# DESCOMENTE quando a etapa 5 existir E o soltar_bloco do
-# entregar_blocos.py estiver escrito. Sem a etapa 5 o robo esta no tapete
-# de blocos, e o entregar_blocos comecaria a soltar bloco no lugar errado.
+# NAO EXISTE AINDA - a entregar_blocos.py antiga foi removida de proposito
+# para ser reescrita do zero. Quando a nova entrega estiver pronta,
+# importe-a aqui e chame na sequencia, como as outras partes.
 # entregar_blocos(leituras)
 
 ev3.speaker.beep()
