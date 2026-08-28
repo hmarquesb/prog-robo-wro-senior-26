@@ -26,12 +26,18 @@ O CICLO DE UM BLOCO - o mesmo do primeiro ao decimo segundo:
     4. volta o carrinho para cte.POSICAO_ARREMESSO, com o bloco preso
        (motor_A.run_target, tambem no laco)
     5. guarda                    (guardar_bloco: servo -> a garra TERMINA
-                                  o movimento, arremessando -> volta)
+                                  o movimento, arremessando -> abre um
+                                  pouco, soltando o bloco na coluna)
+    6. volta o carrinho para a profundidade de onde o bloco saiu e SO
+       ENTAO desce a garra o curso todo
+       (motor_A.run_target + g.descer_garra, no laco)
 
-O MOVIMENTO DA GARRA E PARTIDO EM DOIS, e essa e a ideia da etapa. La
-fora, em cima do bloco, ela levanta so ate ANGULO_PEGAR e para - prende,
-mas nao joga. O carrinho volta com o bloco preso. So entao ela termina o
-movimento, e e o terminar que arremessa.
+O MOVIMENTO DA GARRA E PARTIDO, e essa e a ideia da etapa. La fora, em
+cima do bloco, ela levanta so ate ANGULO_PEGAR e para - prende, mas nao
+joga. O carrinho volta com o bloco preso. So entao ela termina o
+movimento, e e o terminar que arremessa. Depois disso ela ainda abre um
+pouco (ANGULO_SOLTAR) para largar o bloco na coluna, e a descida completa
+fica para depois de o carrinho sair de baixo das colunas.
 
 A POSICAO DE ARREMESSO E ABSOLUTA e igual para os 12 blocos: todos sao
 arremessados do MESMO ponto, venham do fundo, do meio ou da frente. E
@@ -65,10 +71,26 @@ sao graus do motor_A, listadas logo abaixo, e o laco chama
 motor_A.run_target() com elas. Para mudar o alcance de uma profundidade,
 mude o numero na lista - o efeito esta a uma linha de distancia.
 
-A GARRA DESCE LOGO DEPOIS DO ARREMESSO, dentro do proprio guardar_bloco,
-e nao no comeco do bloco seguinte. Ou seja: fora o instante do arremesso
-a garra fica SEMPRE EMBAIXO, pronta para fechar. Quem chama nao precisa
-descer a garra em lugar nenhum.
+A GARRA DESCE LOGO DEPOIS DO ARREMESSO, ainda no ciclo daquele bloco, e
+nao no comeco do bloco seguinte. Ou seja: fora o instante do arremesso a
+garra fica SEMPRE EMBAIXO, pronta para fechar.
+
+MAS ELA NAO DESCE ONDE ARREMESSOU. Na posicao de arremesso a garra esta
+debaixo da boca das colunas de armazenagem - descer o curso todo ali e
+bater no proprio robo. Por isso o passo 6 EXISTE: o carrinho volta
+primeiro para a profundidade de onde aquele bloco saiu, e so la a garra
+desce.
+
+O QUE ELA FAZ ANTES DE SAIR DALI E ABRIR, que e outra coisa: o arremesso
+termina com o bloco ainda preso, e um pedaco de descida - ate
+ANGULO_SOLTAR - solta ele na coluna. Abrir e curto e cabe embaixo das
+colunas; descer e o curso inteiro e nao cabe.
+
+VOLTAR PARA A PROFUNDIDADE DO BLOCO nao e uma escolha entre varias: e o
+unico ponto do curso que se sabe livre. A garra estava ABAIXADA ali
+segundos antes, quando fechou em cima do bloco - a descida e o desfazer
+exato daquela subida. E a casa acabou de esvaziar, entao nao ha bloco
+embaixo dela.
 
 A DESCIDA DA GARRA ACONTECE NA ABERTURA DESTA ETAPA, antes do primeiro
 bloco: o carrinho zera, abre ate o fundo e SO ENTAO a garra desce e zera.
@@ -109,6 +131,14 @@ guardas seriam KeyError e IndexError, e uma celula ruim custaria os
 outros onze blocos. As duas acontecem no planejar(), antes de o robo sair
 do lugar.
 
+A ETAPA TERMINA ENCOSTADA NA PAREDE, no ponto de largada. Depois do
+decimo segundo bloco o robo volta de onde estiver: quase toda a distancia
+por calculo (ele sabe em que coluna parou) e a ultima margem as cegas,
+empurrando a parede. QUEM ALINHA E O CONTATO FISICO - o calculo carrega o
+mesmo erro de odometria que as idas e vindas acumularam, entao voltar
+"pela conta" chegaria exatamente nesse erro sem corrigir nada (README,
+regra 3: sem gyro, a correcao vem de reencostar em algo fisico).
+
 pegar_blocos() DEVOLVE A ORDEM DE ENCHIMENTO das 3 colunas do robo. Em
 rodada limpa ela e igual a cte.COLUNAS_MOSAICO; o que ela acrescenta e o
 registro do que FALTOU, quando alguma celula foi pulada. O
@@ -145,7 +175,7 @@ from setup import ev3, motor_A
 # PLACEHOLDER - MEDIR NO ROBO (TESTE 2 no fim deste arquivo). O fundo
 # saiu do passo dos outros dois (900 - 100 = 800), nao de uma medida
 # propria: confira os tres com regua.
-PROFUNDIDADES = (20, 800, 1800)
+PROFUNDIDADES = (20, 800, 1600)
 
 
 V_CARRINHO = 1000    # graus/s do motor_A ao trocar de profundidade
@@ -160,8 +190,8 @@ V_CARRINHO = 1000    # graus/s do motor_A ao trocar de profundidade
 #   trava antes de chegar no batente        -> aumente a FORCA
 #   estala / range ao bater                 -> diminua a VELOCIDADE, e so
 #                                              depois a forca
-V_ZERAR     = -350   # graus/s, negativo = recolhe
-FORCA_ZERAR = 50      # duty_limit em %
+V_ZERAR     = -300   # graus/s, negativo = recolhe
+FORCA_ZERAR = 30      # duty_limit em %
 
 # --- ARREMESSO: UM par (velocidade, tempo) para os 12 blocos ---
 # A garra fecha em cima do bloco e o arremessa para dentro do robo DE
@@ -179,9 +209,34 @@ FORCA_ZERAR = 50      # duty_limit em %
 # Ajuste os dois numeros e rode o TESTE 3 (a retirada inteira) - se o
 # bloco cai perto ou longe demais nos 12, e este par; se ele viaja certo
 # mas entra na coluna errada, e o angulo do servo, no arduino_servos.ino.
-ARREMESSO_V  = 500
-ARREMESSO_MS = 750
+ARREMESSO_V  = 480
+ARREMESSO_MS = 700
 
+# --- ABERTURA QUE SOLTA O BLOCO, logo depois do arremesso ---
+# O arremesso termina com a garra em cima e o bloco AINDA PRESO nela.
+# Quem o solta e esta abertura: um pouco de descida, na propria posicao de
+# arremesso, o bastante para o bloco cair na coluna e nao mais que isso.
+#
+# NAO E A DESCIDA INTEIRA, e ai esta a razao de o numero existir. A
+# descida ate g.ANGULO_ABAIXADA bate na boca das colunas de armazenagem,
+# porque na posicao de arremesso a garra esta debaixo delas. A ordem e:
+# abre um pouco (solta o bloco) -> o carrinho SAI de baixo das colunas ->
+# so entao a garra desce o curso todo.
+#
+# E um ANGULO ABSOLUTO, em graus do motor_D contados do batente que o
+# zerar_garra marcou - a mesma referencia de cte.ANGULO_PEGAR e de
+# g.ANGULO_ABAIXADA. Fica ENTRE os dois: abaixo do angulo em que a garra
+# prendeu o bloco (senao nao abre o bastante para solta-lo) e bem acima do
+# abaixado (senao volta a bater nas colunas).
+#
+#   o bloco nao cai / sai junto com a garra   -> DIMINUA (abre mais)
+#   a garra raspa na boca das colunas aqui    -> aumente (abre menos)
+#
+# PLACEHOLDER - AJUSTAR NO ROBO. Nao tem teste proprio, pelo mesmo motivo
+# do par de arremesso logo acima: e um numero so para os 12 blocos, entao
+# nao ha nada para comparar entre um bloco e outro. Mexa nele e rode o
+# TESTE 3.
+ANGULO_SOLTAR = 460
 # Tempo da zeragem da garra AQUI, com o carrinho todo estendido em cima
 # da coluna: o curso livre e mais longo que o do garra.py, entao o tempo
 # e outro.
@@ -191,6 +246,48 @@ TEMPO_ZERAR_GARRA_MS = 800
 # vezes com o carrinho estendido.
 ANDAR_BLOCOS = dict(v_max=500, v_min=100, acel=200, desacel=900,
                     kp=4.2, kd=5.5)
+
+# --- VOLTA PARA A PAREDE, no fim da etapa ---
+# Depois do ultimo bloco o robo esta em cima de UMA das 8 colunas do
+# tapete - qual delas depende da leitura daquela rodada -, e esta etapa
+# termina levando ele de volta ao ponto de largada, encostado na parede.
+#
+# SAO DUAS ETAPAS, E CADA UMA RESOLVE UMA COISA:
+#
+#   1. m.andar(-distancia, **ANDAR_VOLTA) - preciso e rapido, usando a
+#      posicao que o proprio laco ja sabe. Cobre quase toda a volta, mas
+#      SO ATE UMA MARGEM antes da parede, nunca a distancia inteira.
+#   2. m.andar_por_tempo(...) - cego, so nessa margem. E ESTA que alinha
+#      de verdade: quem zera o erro de odometria e o CONTATO FISICO com a
+#      parede, nao o calculo da etapa 1 (README, regra 3 - sem gyro, a
+#      correcao vem de reencostar em algo fisico).
+#
+# POR QUE NAO SO A ETAPA 1: o posicao_mm ja carrega o erro acumulado nas
+# idas e vindas pelo tapete - e o motivo de existir o realinhamento. Um
+# andar() que fechasse a distancia inteira por calculo chegaria
+# exatamente nesse erro, sem corrigir nada. A margem e o que da ao robo
+# alguma coisa de verdade para encostar.
+#
+# POR QUE NAO SO A ETAPA 2: empurrar cego ate 645 mm por tempo gasta mais
+# tempo de prova que precisa e deixa as rodas derrapando na parede.
+ANDAR_VOLTA = dict(v_max=800, v_min=150, acel=900, desacel=1200,
+                   kp=2.5, kd=3.5)
+
+# Quanto FICA FALTANDO de proposito depois da etapa 1, para a etapa 2
+# encostar de verdade. PLACEHOLDER - CALIBRAR NO ROBO.
+#
+#   a etapa 1 ja empurra a parede (a etapa 2 quase nao desliza)
+#                                        -> AUMENTE a margem
+#   a etapa 2 demora girando as rodas no ar antes de tocar
+#                                        -> diminua a margem
+MARGEM_ENCOSTO_MM = 80
+
+# Encosto cego, so na margem que sobrou. PLACEHOLDER - CALIBRAR NO ROBO.
+# O tempo tem de cobrir a MARGEM acima MAIS o erro de odometria que a
+# etapa 1 ainda carrega, mais folga para a parede realmente parar o robo
+# antes de o tempo acabar.
+V_ENCOSTAR        = -300   # graus/s das rodas, negativo = re
+TEMPO_ENCOSTAR_MS = 1500
 
 # --- Timeout do carrinho ao trocar de profundidade/arremesso ---
 # MESMA IDEIA do timeout da garra (ver TIMEOUT_MS no garra.py):
@@ -457,7 +554,7 @@ def ir_ate_posicao(destino_mm, posicao_atual_mm):
     NAO MEXE NO CARRINHO NEM NA GARRA, DE PROPOSITO. O robo anda com o
     carrinho onde o bloco anterior o deixou, inclusive todo estendido;
     recolher so para andar seriam 12 idas e voltas de graca. A garra
-    chega aqui EMBAIXO, porque o guardar_bloco anterior ja a desceu.
+    chega aqui EMBAIXO, porque o passo 6 do bloco anterior ja a desceu.
     """
     delta_mm = destino_mm - posicao_atual_mm
     if delta_mm != 0:
@@ -468,8 +565,9 @@ def ir_ate_posicao(destino_mm, posicao_atual_mm):
 def guardar_bloco(coluna_armazenagem):
     """
     Poe o SERVO na coluna de armazenagem pedida, TERMINA o movimento da
-    garra - e o terminar que arremessa o bloco para dentro do robo - e JA
-    DESCE A GARRA DE VOLTA. Esta funcao nao mexe no motor_A.
+    garra - e o terminar que arremessa o bloco para dentro do robo - e
+    ABRE UM POUCO, o que solta o bloco na coluna. Esta funcao nao mexe no
+    motor_A e DEIXA A GARRA EM CIMA, em ANGULO_SOLTAR.
 
     ESPERA O BLOCO JA PRESO (cte.ANGULO_PEGAR) e o CARRINHO JA NA POSICAO
     DE ARREMESSO (cte.POSICAO_ARREMESSO). Quem faz as duas coisas e o
@@ -488,18 +586,28 @@ def guardar_bloco(coluna_armazenagem):
     imprimiu; parar a
     rodada por causa de um bloco custaria os outros onze.
 
-    A DESCIDA FAZ PARTE DO GUARDAR. Ela nao fica para o comeco do proximo
-    bloco: assim que o bloco e solto na coluna de armazenagem a garra
-    volta para g.ANGULO_ABAIXADA e fica la. Quem chama recebe a garra
-    pronta para fechar no proximo bloco.
+    ABRIR NAO E DESCER, e a diferenca e o motivo de a funcao terminar
+    aqui. Abrir e o pedaco de curso que solta o bloco - ANGULO_SOLTAR, um
+    pouco abaixo de onde a garra prendeu. Descer e ir ate
+    g.ANGULO_ABAIXADA, e ISSO nao pode acontecer nesta posicao: na posicao
+    de arremesso a garra esta debaixo da boca das colunas de armazenagem,
+    e o curso inteiro bate nelas.
 
-    Como a volta e para um ANGULO ABSOLUTO, ela tambem reafirma a altura
-    da garra depois de cada arremesso - a forca da subida nao deixa sobra
-    para se acumular de um bloco para o outro.
+    Por isso a sequencia e partida em tres, e so as duas primeiras partes
+    moram aqui:
+
+        1. arremessa                          (aqui)
+        2. abre um pouco, solta o bloco       (aqui)
+        3. carrinho sai de baixo das colunas, e SO ENTAO a garra desce o
+           curso todo                         (passo 6 do laco)
+
+    A descida continua pertencendo ao ciclo DAQUELE bloco, e nao ao comeco
+    do proximo: quem chama recebe a garra em cima, desce ela no passo
+    seguinte, e o bloco seguinte comeca com ela ja embaixo.
     """
     sv.selecionar_coluna(coluna_armazenagem)
     g.mover_garra(ARREMESSO_V, ARREMESSO_MS)
-    g.descer_garra()
+    g.mover_garra_ate_angulo(ANGULO_SOLTAR)
 
 
 # =============================================================================
@@ -513,7 +621,10 @@ def pegar_blocos(leituras):
 
     `leituras` : lista de 12 cores devolvida pela leitura (parte 2), na
                  ordem de varredura em zigue-zague (ver COLUNAS_MOSAICO
-                 no constantes.py).
+                 no constantes.py). Com cte.PULAR_LEITURA ligado essa
+                 lista e a cte.LEITURAS_MANUAIS, escrita na mao - o
+                 ler_mosaico devolve ela sem ler nada. Daqui para baixo
+                 tanto faz: sao 12 cores na ordem da varredura.
 
     LARGADA ESPERADA (quem entrega e a parte3):
 
@@ -527,10 +638,15 @@ def pegar_blocos(leituras):
     caso especial nenhum - todo bloco e andar, estender, guardar.
 
     A GARRA E ZERADA UMA VEZ SO, aqui no comeco. E a unica vez em que ela
-    encosta no batente; dali em diante toda descida (dentro do
-    guardar_bloco) e uma volta ao mesmo angulo absoluto, um pouco antes
-    dele. Por isso a altura de pegar nao muda do primeiro para o decimo
-    segundo bloco e o motor nunca fica empurrando o fim do curso.
+    encosta no batente; dali em diante toda descida (o passo 6 do laco) e
+    uma volta ao mesmo angulo absoluto, um pouco antes dele. Por isso a
+    altura de pegar nao muda do primeiro para o decimo segundo bloco e o
+    motor nunca fica empurrando o fim do curso.
+
+    TODA DESCIDA ACONTECE COM O CARRINHO NA PROFUNDIDADE DE UM BLOCO -
+    nunca na posicao de arremesso, onde a garra bateria na boca das
+    colunas de armazenagem. Vale para a zeragem daqui (carrinho no fundo)
+    e para as 12 descidas do laco.
 
     UM MOVIMENTO DE CADA VEZ: o carrinho abre ate o fundo, espera, e SO
     ENTAO a garra zera. Ja foi sobreposto com wait=False e um atraso, e
@@ -552,20 +668,19 @@ def pegar_blocos(leituras):
     ele escolhe o intercalamento de menor percurso entre elas. O robo vai
     e volta pelo tapete - e o preco de as colunas terem ordem obrigatoria.
 
-    DEVOLVE (carregadas, posicao_mm):
+    TERMINA ENCOSTADO NA PAREDE, no mesmo ponto da largada. Depois do
+    ultimo bloco o robo esta em cima de uma das 8 colunas - qual depende
+    da leitura daquela rodada -, e a etapa se fecha voltando de la: quase
+    tudo por calculo, usando a posicao que o laco ja sabe, e a ultima
+    margem as cegas contra a parede. Quem alinha e o CONTATO, nao o
+    calculo (README, regra 3). Por isso a etapa seguinte nao precisa
+    receber posicao nenhuma - ela comeca do zero, igual a parte3 termina.
 
-        carregadas : a ORDEM DE ENCHIMENTO das 3 colunas do robo, como
-                     {coluna: [indices de celula, na ordem em que
-                     entraram]}. Como as colunas sao FILAS, essa e tambem
-                     a ordem em que os blocos vao sair. Em rodada limpa e
-                     igual a cte.COLUNAS_MOSAICO; o que muda e quando uma
-                     celula foi pulada.
-        posicao_mm : onde o robo PAROU, em mm da parede - a mesma
-                     referencia de POSICAO_COLUNA. Depende da leitura do
-                     mosaico daquela rodada (a ultima coluna visitada nao
-                     e sempre a mesma), entao quem for voltar para a
-                     parede depois (parte4.py) precisa saber daqui quanto
-                     falta andar, em vez de supor a pior distancia.
+    DEVOLVE `carregadas`: a ORDEM DE ENCHIMENTO das 3 colunas do robo,
+    como {coluna: [indices de celula, na ordem em que entraram]}. Como as
+    colunas sao FILAS, essa e tambem a ordem em que os blocos vao sair. Em
+    rodada limpa e igual a cte.COLUNAS_MOSAICO; o que muda e quando uma
+    celula foi pulada.
 
     O MOSAICO PEDE, O ROBO PEGA. Nao ha substituicao de cor: as 8 colunas
     do tapete estao ao alcance, entao os 6 blocos de cada cor estao todos
@@ -618,12 +733,46 @@ def pegar_blocos(leituras):
         if cte.POSICAO_ARREMESSO is not None:
             _run_target_com_timeout(V_CARRINHO, cte.POSICAO_ARREMESSO)
 
-        # 5. servo na coluna certa, a garra TERMINA o movimento (e o que
-        #    arremessa) e volta para baixo
+        # 5. servo na coluna certa, a garra TERMINA o movimento - e o
+        #    terminar que arremessa - e ABRE UM POUCO, soltando o bloco na
+        #    coluna. A garra fica EM CIMA, em ANGULO_SOLTAR; quem a desce
+        #    de verdade e o passo 6, e nao aqui.
         guardar_bloco(coluna_armazenagem)
         carregadas[coluna_armazenagem].append(indice_celula)
 
-    return carregadas, posicao_mm
+        # 6. SAI DE BAIXO DAS COLUNAS ANTES DE DESCER A GARRA. Abrir para
+        #    soltar o bloco pode ser feito ali mesmo (passo 5); descer o
+        #    curso INTEIRO nao, porque na posicao de arremesso a garra
+        #    esta debaixo da boca das colunas de armazenagem. O carrinho
+        #    volta para a profundidade de onde ESTE bloco saiu, que e o
+        #    unico ponto que se sabe livre: a garra estava abaixada ali
+        #    quando fechou em cima do bloco, e a casa acabou de esvaziar.
+        #
+        #    Com POSICAO_ARREMESSO = None o carrinho nunca saiu dali, e
+        #    entao nao ha para onde voltar.
+        if cte.POSICAO_ARREMESSO is not None:
+            _run_target_com_timeout(V_CARRINHO,
+                                    PROFUNDIDADES[indice_profundidade])
+        g.descer_garra()
+
+    # =====================================================================
+    # VOLTA PARA A PAREDE - o fim da etapa, depois do decimo segundo bloco
+    # =====================================================================
+    # O robo parou em cima de uma das 8 colunas, e `posicao_mm` diz qual:
+    # anda so o que falta, em vez de supor sempre a pior distancia.
+
+    # 1. volta precisa, ate uma MARGEM antes da parede - nunca a distancia
+    #    inteira, senao nao sobra nada para encostar.
+    distancia_precisa = posicao_mm - MARGEM_ENCOSTO_MM
+    if distancia_precisa > 0:
+        m.andar(-distancia_precisa, **ANDAR_VOLTA)
+
+    # 2. so a margem, as cegas por tempo. E O CONTATO COM A PAREDE que
+    #    alinha o robo e zera o erro que as idas e vindas acumularam - o
+    #    calculo da etapa 1 carrega esse mesmo erro e nao corrigiria nada.
+    m.andar_por_tempo(TEMPO_ENCOSTAR_MS, V_ENCOSTAR)
+
+    return carregadas
 
 
 # =============================================================================
@@ -723,8 +872,14 @@ def _teste_2_profundidades():
 
 def _teste_3_rodada():
     """
-    Retirada completa com a lista de exemplo do constantes.py, para
+    Retirada completa com uma lista de cores do constantes.py, para
     conferir a logica de ordem sem depender de uma leitura real.
+
+    QUAL DAS DUAS LISTAS depende da cte.PULAR_LEITURA: ligada, usa a
+    cte.LEITURAS_MANUAIS - as cores que voce escreveu na mao e que a
+    rodada de verdade vai usar, ja que com a flag ligada o ler_mosaico
+    atravessa o mosaico sem ler. Desligada, usa a cte.LEITURAS_TESTE de
+    sempre. Assim o teste ensaia exatamente o que o prog1 vai fazer.
 
     Largada da prova: robo encostado na parede, carrinho recolhido, garra
     EM CIMA. O pegar_blocos zera o carrinho, abre ate o fundo, zera a
@@ -736,14 +891,20 @@ def _teste_3_rodada():
     fila com ordem de enchimento fixa, entao o robo vai e volta. O que o
     planejar() minimiza e a soma dessas idas e vindas.
     """
+    if cte.PULAR_LEITURA:
+        leituras = cte.LEITURAS_MANUAIS
+        print("PULAR_LEITURA ligado - usando as cores escritas na mao")
+    else:
+        leituras = cte.LEITURAS_TESTE
+
     print("plano da retirada (posicao mm, profundidade, celula, cor):")
-    for destino_mm, profundidade, celula, cor in planejar(cte.LEITURAS_TESTE):
+    for destino_mm, profundidade, celula, cor in planejar(leituras):
         print("  ", destino_mm, "mm  prof", profundidade,
               " celula", celula, " ", cor,
               " -> coluna", coluna_de_armazenagem(celula))
 
-    carregadas, posicao_final_mm = pegar_blocos(cte.LEITURAS_TESTE)
-    print("parou em", posicao_final_mm, "mm da parede")
+    carregadas = pegar_blocos(leituras)
+    print("terminou encostado na parede")
 
     # CONFERE AS FILAS: cada coluna tem de ter sido enchida exatamente na
     # ordem de cte.COLUNAS_MOSAICO (menos as celulas que foram puladas).

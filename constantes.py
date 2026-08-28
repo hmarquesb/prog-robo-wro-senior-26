@@ -41,7 +41,7 @@ INDICE
      5. SERVO     protocolo I2C do seletor de coluna (via Arduino)
      6. TAPETE    as 8 colunas de blocos e a ordem de retirada
      7. MOSAICO   quais celulas vao em qual coluna de armazenagem
-     8. TESTE     lista de cores de exemplo
+     8. TESTE     lista de cores de exemplo e a flag de pular a leitura
 
 UNIDADES (valem no projeto inteiro)
 
@@ -232,6 +232,11 @@ SERVO_CMD_LIBERAR = 0x21
 # que terminou, o programa desiste, apita e SEGUE. Tem de caber o curso
 # inteiro do servo com folga (o sketch calcula o tempo pelo curso, a
 # TEMPO_POR_GRAU ms por grau).
+#
+# O SERVO DOS BLOCOS ANDA EM RAMPA, de SERVO2_PASSO_GRAUS em
+# SERVO2_PASSO_GRAUS - hoje ~112 ms para o curso dele, sobra de resto. Se
+# um dia ele for muito desacelerado no sketch, refaca a conta
+# (curso x PASSO_MS / PASSO_GRAUS) e suba este numero junto.
 SERVO_TIMEOUT_MS = 2000
 
 # Quantas vezes tentar de novo quando o barramento nao responde. A
@@ -450,6 +455,50 @@ COLUNAS_MOSAICO = {
 # bloco (o unico caso em que ele nao entrega os 12), ponha uma cor 7
 # vezes ou mais.
 LEITURAS_TESTE = [
+    Color.YELLOW, Color.GREEN, Color.BLUE,
+    Color.YELLOW, Color.GREEN, Color.WHITE,
+    Color.BLUE, Color.YELLOW, Color.GREEN,
+    Color.YELLOW, Color.BLUE, Color.YELLOW,
+]
+
+
+# --- PULAR A LEITURA DO MOSAICO E USAR AS CORES ESCRITAS NA MAO ---
+#
+# Com PULAR_LEITURA = True o ler_mosaico() NAO le nada: o robo atravessa o
+# mosaico numa andada so, sem parar em fileira nenhuma e sem mexer no
+# carrinho, e devolve LEITURAS_MANUAIS abaixo. Dali para a frente a rodada
+# segue igual - o pegar_blocos recebe essa lista pelo prog1 e nao sabe a
+# diferenca.
+#
+# PARA QUE SERVE: testar o resto da rodada (retirada, arremesso, entrega)
+# sem depender do sensor de cor, e rodar a prova com o mosaico digitado na
+# mao quando a leitura estiver falhando. Voce olha o mosaico, escreve as
+# 12 cores aqui, roda o prog1.
+#
+# MORA AQUI, e nao no leitura_blocos_parte2.py, porque DOIS arquivos leem
+# a mesma coisa: o ler_mosaico decide se varre ou atravessa, e o TESTE 3
+# do pegar_blocos.py usa esta lista no lugar da LEITURAS_TESTE quando a
+# flag esta ligada.
+#
+# ATENCAO AO DESLIGAR NA HORA DA PROVA: com True o robo passa reto pelo
+# mosaico. Se as cores digitadas nao forem as do mosaico daquela rodada,
+# ele entrega os 12 blocos nas celulas erradas sem reclamar de nada.
+PULAR_LEITURA = False
+
+# As 12 cores NA ORDEM DA VARREDURA - a mesma da LEITURAS_TESTE e a mesma
+# que o COLUNAS_MOSAICO (secao 7) indexa:
+#
+#     indice :  0  1  2  3 |  4  5  6  7 |  8  9 10 11
+#     coluna :  3  3  3  3 |  2  2  2  2 |  1  1  1  1
+#     fileira:  1  2  3  4 |  4  3  2  1 |  1  2  3  4
+#
+# Ou seja: a coluna 3 (a DIREITA) primeiro, de cima para baixo; a coluna 2
+# DE VOLTA, da fileira 4 para a 1; a coluna 1 de novo da 1 para a 4. Nao e
+# a ordem em que se le o mosaico com o olho - confira contra a tabela.
+#
+# So Color.WHITE, GREEN, BLUE e YELLOW valem; qualquer outra coisa o
+# planejar() pula com apito, igual faria com uma leitura ruim.
+LEITURAS_MANUAIS = [
     Color.YELLOW, Color.GREEN, Color.BLUE,
     Color.YELLOW, Color.GREEN, Color.WHITE,
     Color.BLUE, Color.YELLOW, Color.GREEN,

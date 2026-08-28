@@ -107,7 +107,7 @@ def executar():
                     kp=2.5, kd=3.5)
 
     m.girar_eixo(-90,v_max=800, desacel=1200, kp=2.5, kd=7)
-    motor_A.run_angle(1000, 680)
+    motor_A.run_angle(1000, 700)
     lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.2, kd=13, v_max=900, desacel=1000,
                          tempo_ms=5000, ignorar_mm=200)
 

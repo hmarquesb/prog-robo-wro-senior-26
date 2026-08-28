@@ -9,6 +9,8 @@ from setup import ev3, motor_A, motor_B, motor_C, sensor_esq
 
 
 def executar():
+    motor_A.run_until_stalled(800, then=Stop.HOLD, duty_limit=80)
+    motor_A.reset_angle(0)
     m.andar(-560, v_max=1000, v_min=200, acel=1100, desacel=1100,
             kp=2.5, kd=3.5)
     

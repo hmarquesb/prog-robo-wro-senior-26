@@ -134,16 +134,56 @@
 // O -5 e um CHUTE INICIAL, nao uma medida. Rode o servos_selecionar.py e
 // suba ou desca de 2 em 2 ate as tres pararem na boca.
 
-#define ANG_REPOUSO   (0)
-#define ANG_COLUNA_1  (5)
+#define ANG_REPOUSO   (67)
+#define ANG_COLUNA_1  (10)
 #define ANG_COLUNA_2  (67)
-#define ANG_COLUNA_3 (135)
+#define ANG_COLUNA_3 (130)
 
 // ---- Angulos do servo auxiliar ----
 // SERVO2, nao "S2": aqui o 2 e o numero do servo. A porta do EV3 e a
 // S1 - confundir as duas ja custou uma tarde de diagnostico.
+//
+// E O SERVO QUE SEGURA E LIBERA OS BLOCOS (servos_segurar.py). O CURSO E
+// A DIFERENCA ENTRE OS DOIS: quanto o mecanismo abre e so
+// ACIONADO - REPOUSO. Para ele girar MENOS, aproxime os dois numeros -
+// nao mexa na velocidade achando que e a mesma coisa.
+//
+//   o bloco nao sai / abre pouco     -> AUMENTE o ACIONADO
+//   abre demais, bate ou solta dois  -> diminua o ACIONADO
+//
+// O 45 e um PONTO DE PARTIDA, nao uma medida: era 90 e foi cortado pela
+// metade. Rode o servos_segurar.py (TESTE 2, passo a passo, com o bloco
+// na mao) e suba ou desca de 5 em 5.
 #define ANG_SERVO2_REPOUSO   0
-#define ANG_SERVO2_ACIONADO 90
+#define ANG_SERVO2_ACIONADO 60
+
+// ---- Velocidade do servo auxiliar ----
+// UM SERVO NAO TEM CONTROLE DE VELOCIDADE: servo.write(angulo) manda ele
+// para o destino na velocidade maxima que ele tiver, e nao ha parametro
+// para pedir menos. Quem faz ele ir devagar e o sketch, escrevendo o
+// caminho em PEDACOS: anda SERVO2_PASSO_GRAUS, espera
+// SERVO2_PASSO_MS, anda mais um pedaco. E o mover_servo2() abaixo.
+//
+// A VELOCIDADE E A RAZAO ENTRE OS DOIS: graus por passo dividido por ms
+// por passo. Com 2 graus a cada 5 ms sao ~400 graus/s.
+//
+// ISSO E QUASE A VELOCIDADE CHEIA, DE PROPOSITO. Um SG90/MG90S a 6V faz
+// uns 600 graus/s sem carga, entao 400 e "rapido, so um pouco menos
+// rapido do que era antes da rampa existir". Nao adianta pedir mais que
+// ~600 aqui: a rampa passa a ser mais rapida que o proprio servo, e ele
+// volta a se mover na velocidade maxima dele, como no write() direto.
+//
+//   ainda rapido demais       -> AUMENTE o PASSO_MS (10 = ~200 graus/s)
+//   sai aos trancos, treme    -> diminua o PASSO_GRAUS (1 e o minimo util)
+//
+// CUIDADO COM O TIMEOUT DO EV3: a rampa inteira demora
+// curso x PASSO_MS / PASSO_GRAUS. Com o curso de 45 graus acima sao
+// ~112 ms, bem dentro do cte.SERVO_TIMEOUT_MS (2000 ms). SE DESACELERAR
+// MUITO, REFACA ESSA CONTA: passando do timeout o EV3 desiste, apita e
+// segue no meio do movimento - o bloco fica meio solto e o robo ja saiu
+// andando.
+#define SERVO2_PASSO_GRAUS  3
+#define SERVO2_PASSO_MS     4
 
 // Velocidade do servo, para o EV3 saber quando pode seguir. Um SG90 sem
 // carga faz ~60 graus em 120 ms (~2 ms/grau); com carga e mais lento.
@@ -187,6 +227,10 @@ uint16_t rx_impresso = 0;
 
 unsigned long fim_movimento = 0;
 int angulo_atual = ANG_REPOUSO;   // para calcular o curso do proximo salto
+
+// Onde o servo auxiliar esta agora. A rampa do mover_servo2() precisa
+// saber de onde sai, e nao so para onde vai.
+int angulo_servo2 = ANG_SERVO2_REPOUSO;
 
 
 void setup() {
@@ -260,6 +304,38 @@ void mover_seletor(int angulo) {
 }
 
 
+// Leva o servo auxiliar ate `destino` DEVAGAR, de PASSO em PASSO.
+//
+// Roda ate o fim antes de devolver (a espera e um delay() de verdade), e
+// isso e de proposito: enquanto o executar() nao volta, o `pendente`
+// continua marcado, entao o EV3 que perguntar o status recebe "ocupado" e
+// espera - exatamente como esperaria por um movimento rapido.
+//
+// As interrupcoes de I2C continuam sendo atendidas durante o delay(), que
+// e o que permite o EV3 perguntar no meio da rampa.
+void mover_servo2(int destino) {
+  int passo = (destino > angulo_servo2) ? SERVO2_PASSO_GRAUS
+                                        : -SERVO2_PASSO_GRAUS;
+
+  while (angulo_servo2 != destino) {
+    angulo_servo2 += passo;
+
+    // nao passa do destino quando o curso nao e multiplo do passo
+    if ((passo > 0 && angulo_servo2 > destino) ||
+        (passo < 0 && angulo_servo2 < destino)) {
+      angulo_servo2 = destino;
+    }
+
+    servo2.write(angulo_servo2);
+    delay(SERVO2_PASSO_MS);
+  }
+
+  // A rampa ja acabou quando chega aqui; o TEMPO_MINIMO e so a folga para
+  // o servo assentar no ultimo passo.
+  fim_movimento = millis() + TEMPO_MINIMO;
+}
+
+
 void executar(uint8_t cmd) {
   switch (cmd) {
     case CMD_COLUNA_1: mover_seletor(ANG_COLUNA_1); break;
@@ -267,14 +343,8 @@ void executar(uint8_t cmd) {
     case CMD_COLUNA_3: mover_seletor(ANG_COLUNA_3); break;
     case CMD_REPOUSO:  mover_seletor(ANG_REPOUSO);  break;
 
-    case CMD_SERVO2_ACIONA:
-      servo2.write(ANG_SERVO2_ACIONADO);
-      fim_movimento = millis() + (unsigned long)TEMPO_POR_GRAU * 90;
-      break;
-    case CMD_SERVO2_REPOUSO:
-      servo2.write(ANG_SERVO2_REPOUSO);
-      fim_movimento = millis() + (unsigned long)TEMPO_POR_GRAU * 90;
-      break;
+    case CMD_SERVO2_ACIONA:  mover_servo2(ANG_SERVO2_ACIONADO); break;
+    case CMD_SERVO2_REPOUSO: mover_servo2(ANG_SERVO2_REPOUSO);  break;
 
     default:
       // NAO da para responder "deu erro" - o protocolo so tem 1 byte de

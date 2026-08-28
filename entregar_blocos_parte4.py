@@ -6,66 +6,39 @@ entregar_blocos_parte4.py - Do tapete de blocos de volta ao mosaico (INICIO)
 O trecho que comeca o "percurso que falta" citado no prog1.py: tapete de
 blocos -> mosaico, para a entrega poder comecar.
 
-    pegar_blocos(leituras)              retira os 12 blocos    (ja existe)
-    entregar_blocos_parte4.executar(posicao_mm)  <-- ESTE ARQUIVO (so o
-                                        realinhamento, ver "O QUE FALTA")
+    pegar_blocos(leituras)              retira os 12 blocos E VOLTA PARA A
+                                        PAREDE                 (ja existe)
+    entregar_blocos_parte4.executar()   <-- ESTE ARQUIVO
     (entrega em si)                     devolve os 12 blocos no mosaico
                                         - EM REESCRITA, ver "O QUE FALTA"
 
 Roda de dois jeitos, igual as outras partes:
 
-    F5 neste arquivo  -> executa so este trecho, com POSICAO_TESTE la
-                         embaixo no lugar do valor que o pegar_blocos
-                         devolveria
-    prog1.py          -> chamado na sequencia da prova, com a posicao de
-                         verdade que pegar_blocos() devolveu
+    F5 neste arquivo  -> executa so este trecho, com o robo posto a mao na
+                         largada descrita abaixo
+    prog1.py          -> chamado na sequencia da prova
 
 DE ONDE O ROBO VEM (fim do pegar_blocos):
 
-    posicao  : em cima de QUALQUER UMA das 8 colunas do tapete - o
-               pegar_blocos anda e volta pelo tapete, entao a ultima
-               coluna visitada depende da leitura do mosaico daquela
-               rodada, nao e sempre a mesma. E POR ISSO que executar()
-               recebe `posicao_mm`: sem ela, so restaria supor a pior
-               distancia possivel e andar o mesmo tempo sempre, mesmo
-               quando o robo parou logo na primeira coluna.
-    carrinho : em cte.POSICAO_ARREMESSO (fixo, o pegar_blocos termina todo
-               bloco ali) - NAO precisa recolher antes de andar: o robo ja
-               anda com ele estendido desde a parte3 (virou peca impressa
-               em 3D leve o bastante - README, regra 8).
-    garra    : embaixo (guardar_bloco desce ela depois de cada arremesso)
+    posicao  : ENCOSTADO NA PAREDE do tapete de blocos, o mesmo ponto de
+               largada da etapa anterior. O realinhamento morava AQUI e
+               foi para o fim do pegar_blocos: e ele que sabe em que
+               coluna parou, entao e ele que consegue voltar andando so o
+               que falta, em vez de supor a pior distancia. Por isso
+               executar() nao recebe mais `posicao_mm` - o ponto de
+               partida e sempre o mesmo.
+    carrinho : na PROFUNDIDADE do ultimo bloco pego - o pegar_blocos volta
+               para la depois de cada arremesso, para tirar a garra de
+               baixo das colunas antes de descer. Qual das tres depende da
+               rodada, e por isso a primeira coisa daqui e RECOLHER ele
+               contra o batente: o percurso abaixo tem curva e seguidor de
+               linha, e com o carrinho para fora ele bate.
+    garra    : embaixo (o pegar_blocos desce ela no fim do ciclo de cada
+               bloco, ja fora da posicao de arremesso)
 
-DUAS ETAPAS, E CADA UMA RESOLVE UMA COISA DIFERENTE:
-
-    1. `m.andar(-distancia, ...)` - PD de sincronismo, RAPIDO E PRECISO,
-       usando a posicao que o pegar_blocos ja sabe. Cobre quase toda a
-       volta sem gastar tempo de mais nem menos, mas SO ATE UMA MARGEM
-       antes da parede - nunca a distancia inteira.
-    2. `m.andar_por_tempo(...)` - cego, por TEMPO, so nessa margem que
-       sobrou. E ESTA ETAPA QUE REALINHA DE VERDADE: e o CONTATO FISICO
-       com a parede que zera o erro de odometria acumulado pelo
-       pegar_blocos (README, regra 3 - sem gyro, a correcao vem de
-       reencostar em algo fisico, nao de confiar no calculo).
-
-POR QUE NAO FAZER TUDO NA ETAPA 1: se `posicao_mm` ja carrega erro
-acumulado (e ele carrega - e o motivo de existir o realinhamento), um
-andar() que tentasse fechar a distancia INTEIRA por calculo chegaria
-exatamente nesse erro, sem corrigir nada. A margem que sobra para a etapa
-2 e o que da ao robo alguma coisa de verdade para encostar.
-
-POR QUE NAO FAZER TUDO NA ETAPA 2 (como a primeira versao deste arquivo
-fazia): empurrar cego a distancia INTEIRA (ate 630 mm, hoje) por tempo
-gasta mais bateria/tempo de prova que precisa, e passa mais tempo com as
-rodas derrapando contra a parede no fim. Usar `posicao_mm` encurta isso
-para so a margem.
-
-O QUE FALTA (ver prog1.py, item 2 da lista "ainda faltam"): isto so
-resolve o REALINHAMENTO contra a parede. Ainda falta:
-
-    1. o percurso que leva o robo dali ate ficar em cima da FILEIRA 4 do
-       mosaico;
-    2. a entrega em si (a antiga entregar_blocos.py foi removida de
-       proposito para ser reescrita do zero).
+O QUE FALTA (ver prog1.py, item 2 da lista "ainda faltam"): a entrega em
+si - a antiga entregar_blocos.py foi removida de proposito para ser
+reescrita do zero.
 
 A antiga entregar_blocos.py media alinhamento pelo ROBO (colunas fixas no
 topo, quem anda e o chassi) e as 3 colunas de armazenagem como FILA - se
@@ -73,68 +46,107 @@ a reescrita mudar essa decisao, atualize tambem a docstring do
 pegar_blocos.py, que depende da mesma ordem.
 """
 
+from pybricks.parameters import Stop
+from pybricks.tools import wait
+
 import movimento as m
-from setup import ev3
+import linha as lin
+import servos_segurar as sg
+from setup import ev3, motor_A, motor_C
 
 
 # =============================================================================
 # OS NUMEROS DESTE TRECHO
 # =============================================================================
 
-# --- Etapa 1: volta precisa, calculada a partir de posicao_mm ---
-# So estes ganhos mudam a velocidade/suavidade dessa etapa - a DISTANCIA
-# nao e um numero fixo daqui, e sim `posicao_mm - MARGEM_ENCOSTO_MM`,
-# calculada dentro de executar().
-ANDAR_VOLTA = dict(v_max=800, v_min=150, acel=900, desacel=1200,
-                   kp=2.5, kd=3.5)
-
-# Quanto FICA FALTANDO de proposito depois da etapa 1, para a etapa 2
-# encostar de verdade. PLACEHOLDER - CALIBRAR NO ROBO.
+# --- Recolhimento do carrinho, contra o batente de casa ---
+# O robo chega aqui com o carrinho na profundidade do ultimo bloco pego, e
+# o percurso abaixo passa por curvas e por seguidor de linha - com o
+# carrinho para fora ele bate e desequilibra. Gira ate travar e SEGURA.
 #
-#   etapa 1 already empurra a parede (sobra pouco tempo de deslizar
-#   na etapa 2, ou nenhum)          -> AUMENTE a margem
-#   etapa 2 demora muito girando as rodas no ar antes de tocar
-#                                    -> diminua a margem
-MARGEM_ENCOSTO_MM = 80
+# NAO E UMA ZERAGEM: nao ha reset_angle aqui, porque nada neste arquivo
+# conta graus a partir do batente. Quem zera e o pegar_blocos, na abertura
+# dele, e e por isso que os numeros nao sao compartilhados com os de la.
+#
+#   trava antes de chegar no batente  -> aumente a FORCA
+#   estala / range ao bater           -> diminua a VELOCIDADE
+V_RECOLHER     = -350   # graus/s, negativo = recolhe
+FORCA_RECOLHER = 50     # duty_limit em %
 
-# --- Etapa 2: encosto cego, so na margem que sobrou ---
-# PLACEHOLDER - CALIBRAR NO ROBO. O tempo tem de dar conta da MARGEM
-# acima MAIS a folga do erro de odometria que a etapa 1 ainda carrega,
-# mais um pouco de folga para a parede realmente parar o robo antes do
-# tempo acabar.
-V_ENCOSTAR        = -300    # graus/s do motor_B/motor_C, negativo = re
-TEMPO_ENCOSTAR_MS = 1500
-
-# Posicao usada quando este arquivo roda sozinho com F5 (sem pegar_blocos
-# antes para fornecer a de verdade). Troque para testar outras distancias.
-POSICAO_TESTE = 400
+# --- O recuo que acontece ENTRE abrir e fechar o servo dos blocos ---
+# Devagar de proposito: sao 40 mm, e o robo esta com o bloco ja solto
+# atras dele. Acelerar/frear forte aqui arrasta o que acabou de sair.
+#
+# A DISTANCIA nao mora aqui: ela esta escrita na propria linha do
+# m.andar(), la embaixo, junto do movimento que ela descreve.
+ANDAR_SOLTAR = dict(v_max=150, v_min=100, acel=500, desacel=500,
+                    kp=2.5, kd=3.5)
 
 
-def executar(posicao_mm):
+def executar():
     """
-    Reencosta o robo na parede do tapete de blocos, de re, para zerar o
-    erro de odometria acumulado pelo pegar_blocos.
+    Leva o robo do tapete de blocos de volta ao mosaico.
 
-    `posicao_mm` : onde o pegar_blocos deixou o robo, em mm da parede - o
-                   segundo valor que pegar_blocos() devolve. E o que
-                   permite andar so o necessario em vez de supor sempre a
-                   pior distancia (ver docstring do modulo).
+    LARGADA: o robo chega ENCOSTADO NA PAREDE do tapete de blocos - quem
+    faz a volta e o encosto e o proprio pegar_blocos, no fim dele. Por
+    isso esta funcao nao recebe posicao nenhuma: o ponto de partida e
+    sempre o mesmo, e ja esta alinhado contra algo fisico.
 
-    NAO MEXE NO CARRINHO NEM NA GARRA: os dois ja chegam prontos para
-    andar (ver docstring do modulo).
+    A GARRA ja chega embaixo (o pegar_blocos desce ela no fim do ciclo de
+    cada bloco). O CARRINHO chega estendido, e a primeira coisa aqui e
+    recolher ele.
+
+    TERMINA SOLTANDO QUATRO BLOCOS, um por fileira: recua ate a fileira,
+    abre o servo dos blocos, fecha de novo - quatro vezes. Sai da funcao
+    com o servo ABERTO, para nao ficar segurando nada depois da entrega.
     """
-    # 1. volta precisa, ate uma MARGEM antes da parede - nunca a
-    #    distancia inteira (ver "POR QUE NAO FAZER TUDO NA ETAPA 1").
-    distancia_precisa = posicao_mm - MARGEM_ENCOSTO_MM
-    if distancia_precisa > 0:
-        m.andar(-distancia_precisa, **ANDAR_VOLTA)
+    # o carrinho volta para casa antes de o robo sair andando em curva
+    motor_A.run_until_stalled(V_RECOLHER, then=Stop.HOLD,
+                              duty_limit=FORCA_RECOLHER)
 
-    # 2. so a margem, as cegas por tempo - e o CONTATO FISICO desta etapa
-    #    que realinha de verdade, nao o calculo da etapa 1.
-    m.andar_por_tempo(TEMPO_ENCOSTAR_MS, V_ENCOSTAR)
-    
+    m.girar_pivo(motor_C, -30, v_max=900, acel=800, desacel=1600,
+                 kp=2.4, kd=7.33)
+    m.andar(370, v_max=1000, v_min=300, acel=1000, desacel=1000,
+            kp=2.5, kd=3.5)
+    m.girar_eixo(-60, v_max=700, desacel=1200, kp=2.5, kd=7)
+    motor_A.run_angle(1000, 1100)
+    motor_A.run_angle(-1000, 210)
+    lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.5, kd=13,
+                     v_max=900, desacel=1000, tempo_ms=5000, ignorar_mm=200)
+    m.andar(60, v_max=800, v_min=100, acel=1000, desacel=1000,
+            kp=2.5, kd=3.5)
+    m.girar_eixo(-180, v_max=700, desacel=1200, kp=2.5, kd=7)
+    m.andar(-270, v_max=800, v_min=100, acel=1000, desacel=1000,
+            kp=2.5, kd=3.5)
 
+    # SOLTA OS QUATRO BLOCOS, um por fileira. Cada volta e a mesma coisa:
+    # recua ate a fileira, abre o servo (o bloco cai), fecha de novo antes
+    # de andar para a proxima.
+    #
+    # AS PAUSAS NAO SAO ESPERA DE SERVO - disso o servos_segurar.py ja
+    # cuida, esperando o Arduino confirmar o fim do movimento. Elas sao o
+    # tempo de o BLOCO cair e assentar, que o Arduino nao tem como saber.
+    #
+    # Os dois comandos sao do SEGUNDO servo do Arduino (servos_segurar.py),
+    # nao do seletor de coluna. Se abrir e fechar estiverem trocados, ou se
+    # o curso estiver grande demais, os angulos ficam no
+    # arduino_servos.ino - nao aqui.
+    #
+    # O ROBO SO ANDA COM OS DOIS SERVOS PARADOS: os comandos esperam a
+    # confirmacao do Arduino antes de devolver o controle, entao a andada
+    # da volta seguinte comeca com o servo ja no lugar.
+    for _ in range(4):
+        m.andar(-51, **ANDAR_SOLTAR)
+        wait(200)
+        sg.liberar()
+        wait(500)
+        sg.segurar()
+        wait(200)
+
+    m.andar(-150, v_max=1000, v_min=200, acel=1000, desacel=1000,
+            kp=2.5, kd=3.5)
+    sg.liberar()
 
 if __name__ == "__main__":
-    executar(POSICAO_TESTE)
+    executar()
     ev3.speaker.beep()

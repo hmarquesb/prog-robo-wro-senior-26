@@ -56,6 +56,14 @@ VARREDURA ACONTECE: a folga da correia fica toda para o lado de casa, que
 a leitura nao usa. UM ALVO POSITIVO aqui nao recolhe nada - manda abrir
 alem do batente, e o motor fica empurrando o fim do curso parado.
 
+DA PARA PULAR A LEITURA INTEIRA: com cte.PULAR_LEITURA = True o robo
+ATRAVESSA o mosaico numa andada so - sem parar em fileira nenhuma, sem
+mexer no carrinho e sem ler sensor - e o ler_mosaico() devolve as 12
+cores escritas na mao em cte.LEITURAS_MANUAIS. O robo para no MESMO ponto
+de sempre, entao o parte3 e tudo o que vem depois nao mudam nada. Serve
+para testar a retirada e a entrega sem depender do sensor de cor, e para
+rodar com o mosaico digitado a mao se a leitura estiver falhando.
+
 As cores saem do sensor.color() cru, e nao do lin.ler() - aqui interessa
 QUAL cor e, nao quanto reflete, entao a calibracao do seguidor de linha
 nao entra nessa conta. Ela ainda importa para o seguir_linha do comeco.
@@ -65,6 +73,7 @@ Os numeros deste trecho ficam logo abaixo, neste arquivo.
 
 from pybricks.parameters import Stop
 from pybricks.tools import wait
+import constantes as cte
 import movimento as m
 import linha as lin
 from setup import ev3, motor_A, sensor_esq, sensor_dir
@@ -113,6 +122,8 @@ FORCA_ABRIR = 80      # duty_limit em %
 # entra na tabela de PASSOS, nao aqui: na coluna 2 ele e negativo, porque
 # a leitura volta.
 ENTRE_FILEIRAS_MM = 40
+
+ENTRADA_MOSAICO_MM = 155   # entra em cima da primeira fileira
 
 AVANCO_FINAL_MM = 200   # sai de cima do mosaico
 
@@ -170,12 +181,38 @@ def ler_mosaico(passos=PASSOS):
     que e de onde o AVANCO_FINAL_MM o tira.
 
     E a lista devolvida que o pegar_blocos.pegar_blocos() recebe.
+
+    COM cte.PULAR_LEITURA LIGADO nada disso acontece: o robo ATRAVESSA o
+    mosaico numa andada so e devolve as cores escritas na mao em
+    cte.LEITURAS_MANUAIS. Ver o bloco logo abaixo.
     """
-     
+    # --- ATALHO: passar reto pelo mosaico, sem ler ---------------------
+    # Nao zera o carrinho, nao troca de coluna, nao le sensor nenhum: so
+    # anda a MESMA distancia total que a varredura andaria, para largar o
+    # robo no mesmo ponto de sempre - o parte3 comeca de la.
+    #
+    # A distancia sai somada dos proprios PASSOS, e nao escrita a mao, para
+    # nao ficar para tras quando a tabela mudar. Os passos "carrinho" nao
+    # movem o robo e ficam de fora; os da coluna 2 sao negativos e se
+    # cancelam com a ida, entao a conta hoje da 155 + 120 - 120 + 120 + 200.
+    #
+    # Vai numa andada so, e nao em dez: dentro do mosaico nao ha nada para
+    # acertar por fileira, e um movimento longo erra menos que dez curtos.
+    if cte.PULAR_LEITURA:
+        distancia = ENTRADA_MOSAICO_MM + AVANCO_FINAL_MM
+        for tipo, valor, sensor, nome in passos:
+            if tipo == "andar":
+                distancia += valor
+
+        print("PULAR_LEITURA ligado - atravessa", distancia,
+              "mm sem ler e usa as cores da mao")
+        m.andar(distancia, **ANDAR_MOSAICO)
+        return list(cte.LEITURAS_MANUAIS)
+
     motor_A.run_until_stalled(V_ABRIR, then=Stop.HOLD, duty_limit=FORCA_ABRIR)
     motor_A.reset_angle(0)
     
-    m.andar(145, **ANDAR_MOSAICO)  # entra em cima da primeira fileira
+    m.andar(ENTRADA_MOSAICO_MM, **ANDAR_MOSAICO)  # entra na primeira fileira
 
     leituras = []
     for tipo, valor, sensor, nome in passos:
