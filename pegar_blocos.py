@@ -55,7 +55,8 @@ de o robo sair do lugar. O laco so executa o plano.
 
 QUEM ESCOLHE A COLUNA DE ARMAZENAGEM E O SERVO. As 3 colunas sao FIXAS no
 topo do robo, e um servo montado nelas poe a boca certa debaixo do
-arremesso (servos.py). A garra arremessa os 12 blocos com a MESMA forca,
+arremesso (servos_selecionar.py). A garra arremessa os 12 blocos com a
+MESMA forca,
 e o carrinho para na MESMA profundidade nominal - nao ha ajuste por
 coluna em lugar nenhum.
 
@@ -119,7 +120,7 @@ from pybricks.tools import wait, StopWatch
 
 import constantes as cte
 import movimento as m
-import servos as sv
+import servos_selecionar as sv
 import garra as g
 from setup import ev3, motor_A
 
@@ -144,7 +145,8 @@ from setup import ev3, motor_A
 # PLACEHOLDER - MEDIR NO ROBO (TESTE 2 no fim deste arquivo). O fundo
 # saiu do passo dos outros dois (900 - 100 = 800), nao de uma medida
 # propria: confira os tres com regua.
-PROFUNDIDADES = (110, 900, 1700)
+PROFUNDIDADES = (20, 800, 1800)
+
 
 V_CARRINHO = 1000    # graus/s do motor_A ao trocar de profundidade
 
@@ -158,8 +160,8 @@ V_CARRINHO = 1000    # graus/s do motor_A ao trocar de profundidade
 #   trava antes de chegar no batente        -> aumente a FORCA
 #   estala / range ao bater                 -> diminua a VELOCIDADE, e so
 #                                              depois a forca
-V_ZERAR     = -800    # graus/s, negativo = recolhe
-FORCA_ZERAR = 70      # duty_limit em %
+V_ZERAR     = -350   # graus/s, negativo = recolhe
+FORCA_ZERAR = 50      # duty_limit em %
 
 # --- ARREMESSO: UM par (velocidade, tempo) para os 12 blocos ---
 # A garra fecha em cima do bloco e o arremessa para dentro do robo DE
@@ -177,8 +179,8 @@ FORCA_ZERAR = 70      # duty_limit em %
 # Ajuste os dois numeros e rode o TESTE 3 (a retirada inteira) - se o
 # bloco cai perto ou longe demais nos 12, e este par; se ele viaja certo
 # mas entra na coluna errada, e o angulo do servo, no arduino_servos.ino.
-ARREMESSO_V  = 900
-ARREMESSO_MS = 500
+ARREMESSO_V  = 500
+ARREMESSO_MS = 750
 
 # Tempo da zeragem da garra AQUI, com o carrinho todo estendido em cima
 # da coluna: o curso livre e mais longo que o do garra.py, entao o tempo
@@ -187,8 +189,8 @@ TEMPO_ZERAR_GARRA_MS = 800
 
 # Troca de coluna no tapete: o robo anda de lado para os blocos, muitas
 # vezes com o carrinho estendido.
-ANDAR_BLOCOS = dict(v_max=450, v_min=100, acel=200, desacel=1000,
-                    kp=6, kd=3)
+ANDAR_BLOCOS = dict(v_max=500, v_min=100, acel=200, desacel=900,
+                    kp=4.2, kd=5.5)
 
 # --- Timeout do carrinho ao trocar de profundidade/arremesso ---
 # MESMA IDEIA do timeout da garra (ver TIMEOUT_MS no garra.py):
@@ -327,10 +329,13 @@ def planejar(leituras):
       FIXO   a ordem DENTRO de cada coluna do robo (filas_de_enchimento):
              as colunas sao filas, entao elas tem de ser enchidas na
              MESMA ordem em que vao ser entregues (fileira 4 -> 1).
-      FIXO   a ordem DENTRO de uma cor (cte.ORDEM_NA_COR): esvazia a
-             coluna de perto - fundo, meio, perto - e so entao a irma.
-             E o que garante que nunca haja bloco ATRAS do que esta sendo
+      FIXO   a ordem DENTRO de uma cor (cte.ordem_da_cor): esvazia uma
+             coluna inteira - fundo, meio, perto - e so entao a irma. E o
+             que garante que nunca haja bloco ATRAS do que esta sendo
              arremessado, e que o carrinho so RECOLHA dentro de uma coluna.
+             QUAL DAS DUAS COLUNAS VEM PRIMEIRO depende da cor: o padrao
+             e a de perto, mas o BRANCO comeca pela irma, por motivo
+             fisico (cte.ORDEM_POR_COR).
       LIVRE  o INTERCALAMENTO das 3 filas entre si. E so aqui que da para
              otimizar - e e o que esta funcao faz.
 
@@ -380,7 +385,7 @@ def planejar(leituras):
 
                 indice_celula = filas[fila][chave[fila]]
                 cor = leituras[indice_celula]
-                indice_coluna, _ = cte.ORDEM_NA_COR[contagens[cor]]
+                indice_coluna, _ = cte.ordem_da_cor(cor)[contagens[cor]]
                 destino = cte.POSICAO_COLUNA[cor][indice_coluna]
 
                 novo_custo = custo + abs(destino - posicao)
@@ -414,7 +419,7 @@ def planejar(leituras):
 
     for indice_celula in melhor[1]:
         cor = leituras[indice_celula]
-        indice_coluna, indice_profundidade = cte.ORDEM_NA_COR[contagens[cor]]
+        indice_coluna, indice_profundidade = cte.ordem_da_cor(cor)[contagens[cor]]
         passos.append((cte.POSICAO_COLUNA[cor][indice_coluna],
                        indice_profundidade, indice_celula, cor))
         contagens[cor] += 1
@@ -479,7 +484,8 @@ def guardar_bloco(coluna_armazenagem):
     identico nas tres: ARREMESSO_V / ARREMESSO_MS, um par so.
 
     SE O SERVO FALHAR o bloco e arremessado assim mesmo, para a coluna em
-    que o seletor tiver ficado. O servos.py ja apitou e imprimiu; parar a
+    que o seletor tiver ficado. O servos_selecionar.py ja apitou e
+    imprimiu; parar a
     rodada por causa de um bloco custaria os outros onze.
 
     A DESCIDA FAZ PARTE DO GUARDAR. Ela nao fica para o comeco do proximo
@@ -636,7 +642,9 @@ def pegar_blocos(leituras):
 # os 12 blocos, entao nao ha nada para comparar entre um bloco e outro -
 # ajuste os dois numeros e rode o TESTE 3. Se o bloco viaja certo mas cai
 # na coluna errada, o problema e o angulo do servo, no
-# arduino_servos.ino: rode o servos.py para conferir isso separado.
+# arduino_servos.ino: rode o servos_selecionar.py para conferir isso
+# separado - la os angulos ja foram medidos e o passeio pelas 3 colunas
+# para na boca de cada uma.
 
 def _esperar_centro():
     """

@@ -56,7 +56,8 @@ sensor_dir = ColorSensor(Port.S4)
 # O servo das colunas nao e ligado no EV3: quem o comanda e um Arduino
 # Nano, e o EV3 conversa com ele por I2C. Mora aqui pelo mesmo motivo dos
 # motores - dois I2CDevice na mesma porta seriam dois donos do mesmo
-# barramento. Quem fala o protocolo e o servos.py.
+# barramento. Quem fala o protocolo e o servos_selecionar.py; o
+# servos_segurar.py (o outro servo, no D10 do Arduino) importa dele.
 #
 # O teste de bancada (teste_arduino.py) cria o proprio I2CDevice DE
 # PROPOSITO: ele roda com so o cabo do Arduino plugado, e importar este

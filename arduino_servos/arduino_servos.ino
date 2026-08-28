@@ -113,14 +113,31 @@
 #endif
 
 // ---- Angulos do SELETOR (servo 1) ----
-// UM ANGULO POR COLUNA DE ARMAZENAGEM. Ajustar depois de montar: o "90"
-// mecanico raramente e o 90 do servo. Um bloco caindo na coluna errada se
-// conserta AQUI, nao no Python (regra 11 do README).
-// VALORES PROVISORIOS ate medir no robo.
-#define ANG_REPOUSO    0
-#define ANG_COLUNA_1  45
-#define ANG_COLUNA_2  90
-#define ANG_COLUNA_3 135
+// UM ANGULO POR COLUNA DE ARMAZENAGEM. Um bloco caindo na coluna errada
+// se conserta AQUI, nao no Python (regra 11 do README).
+//
+// JA MEDIDOS NO ROBO: o passeio do servos_selecionar.py para na boca de
+// cada coluna com estes valores. Nao sao mais provisorios - se mexer,
+// rode aquele teste de novo antes do pegar_blocos.
+// O ESPACAMENTO (45 graus entre colunas vizinhas) JA ESTA CERTO - foi
+// medido. O que ainda se ajusta e o ZERO do horn na montagem: os tres
+// erram para o MESMO lado, na mesma quantidade, porque o horn entrou no
+// eixo um dente fora. Por isso o ajuste e UM numero, e nao tres.
+//
+// AJUSTE_SELETOR e somado aos tres. NEGATIVO gira na direcao da coluna 1,
+// positivo na direcao da coluna 3. Mexa SO nesta linha: assim o
+// espacamento nao tem como ser quebrado sem querer.
+//
+//   bloco cai entre a coluna 1 e a 2  -> menos negativo
+//   os tres ainda passam da boca      -> mais negativo
+//
+// O -5 e um CHUTE INICIAL, nao uma medida. Rode o servos_selecionar.py e
+// suba ou desca de 2 em 2 ate as tres pararem na boca.
+
+#define ANG_REPOUSO   (0)
+#define ANG_COLUNA_1  (5)
+#define ANG_COLUNA_2  (67)
+#define ANG_COLUNA_3 (135)
 
 // ---- Angulos do servo auxiliar ----
 // SERVO2, nao "S2": aqui o 2 e o numero do servo. A porta do EV3 e a

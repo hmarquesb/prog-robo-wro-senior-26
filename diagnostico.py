@@ -98,7 +98,8 @@ try:
     import movimento as m
     import linha as lin
     import garra as g
-    import servos as sv
+    import servos_selecionar as sv
+    import servos_segurar as sg
     _passou("controle")
 except Exception as e:
     _falhou("controle", e)

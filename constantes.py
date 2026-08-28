@@ -218,6 +218,16 @@ SERVO_CMD = {
     3: SERVO_CMD_COLUNA_3,
 }
 
+# SEGUNDO SERVO (D10 no Arduino), o que SEGURA e LIBERA os blocos. Mesmo
+# barramento, mesmo byte de status - so muda o comando. O sketch ja trata
+# os dois (CMD_SERVO2_ACIONA / CMD_SERVO2_REPOUSO).
+#
+# QUAL DOS DOIS ANGULOS SEGURA e questao de montagem, nao de programa: se
+# o teste mostrar invertido, troque ANG_SERVO2_ACIONADO e
+# ANG_SERVO2_REPOUSO no arduino_servos.ino, nao estes bytes.
+SERVO_CMD_SEGURAR = 0x20
+SERVO_CMD_LIBERAR = 0x21
+
 # Rede de seguranca da espera: se em SERVO_TIMEOUT_MS o Arduino nao disser
 # que terminou, o programa desiste, apita e SEGUE. Tem de caber o curso
 # inteiro do servo com folga (o sketch calcula o tempo pelo curso, a
@@ -251,7 +261,7 @@ SERVO_TENTATIVAS = 3
 # numero, ou um pouco menos.
 #
 # VALOR PROVISORIO - nunca foi medido neste mecanismo.
-ANGULO_PEGAR = 600
+ANGULO_PEGAR = 450
 
 # --- ONDE o carrinho para para a garra jogar o bloco na coluna ---
 # Depois de alcancar o bloco, o carrinho volta PARA ESTA POSICAO e so
@@ -282,7 +292,7 @@ ANGULO_PEGAR = 600
 #   Ficar mais para dentro que PROFUNDIDADES[0] resolve.
 #
 # None desliga: o robo arremessa de onde pegou, sem mover o carrinho.
-POSICAO_ARREMESSO = 650
+POSICAO_ARREMESSO = 510
 
 # --- Distancia (mm) que o robo anda, A PARTIR DA PAREDE, ate ficar
 # alinhado de lado com cada uma das 8 colunas verticais do tapete:
@@ -296,10 +306,10 @@ POSICAO_ARREMESSO = 650
 # arremesso - tudo o mais depende de o robo parar no lugar certo. Rode
 # pegar_blocos.py no TESTE 1. ---
 POSICAO_COLUNA = {
-    Color.WHITE:  [80, 150],
-    Color.GREEN:  [240, 305],
-    Color.BLUE:   [405, 480],
-    Color.YELLOW: [565, 630],
+    Color.WHITE:  [80, 160],
+    Color.GREEN:  [245, 305],
+    Color.BLUE:   [415, 480],
+    Color.YELLOW: [565, 645],
 }
 
 # Mesma ordem fisica do tapete. Existe como tupla (e nao so como as
@@ -335,6 +345,47 @@ ORDEM_NA_COR = (
     (1, 0),   # coluna irma,     bloco de perto - termina aqui, adiantado
 )
 BLOCOS_POR_COR = len(ORDEM_NA_COR)
+
+# --- EXCECOES: cores que comecam pela coluna IRMA, e nao pela de perto ---
+#
+# Mesma tabela de cima, so que com as duas metades trocadas: esvazia a
+# coluna 1 (a irma, mais adiante no tapete) inteira - fundo, meio, perto -
+# e SO ENTAO volta para a coluna 0. Dentro de cada coluna a ordem nao
+# muda: do FUNDO PARA A FRENTE continua valendo, e e o que garante que
+# nunca haja bloco atras do que esta sendo arremessado.
+#
+# O BRANCO ESTA AQUI POR MOTIVO FISICO: a primeira coluna branca e a mais
+# perto da largada, e pega-la antes da irma nao funciona no mecanismo.
+# Nao e otimizacao de percurso - o planejar() ja cuida disso sozinho -,
+# entao nao "conserte" mexendo aqui: se uma cor volta para o padrao, tire
+# a linha dela do dict.
+ORDEM_NA_COR_IRMA_PRIMEIRO = (
+    (1, 2),   # coluna irma,     bloco do FUNDO
+    (1, 1),   # coluna irma,     bloco do meio  - so recolhe o carrinho
+    (1, 0),   # coluna irma,     bloco de perto - idem
+    (0, 2),   # coluna de perto, bloco do FUNDO - ANDA de volta
+    (0, 1),   # coluna de perto, bloco do meio
+    (0, 0),   # coluna de perto, bloco de perto
+)
+
+# Cor -> ordem propria. Quem NAO esta aqui usa o ORDEM_NA_COR de cima.
+ORDEM_POR_COR = {
+    Color.WHITE: ORDEM_NA_COR_IRMA_PRIMEIRO,
+}
+
+
+def ordem_da_cor(cor):
+    """
+    A ordem dos 6 blocos daquela cor: a excecao dela, se tiver uma, senao
+    o ORDEM_NA_COR padrao.
+
+    Existe como funcao (a unica deste arquivo) porque o planejar() le
+    esta tabela em dois lugares - ao medir o percurso e ao traduzir a
+    ordem escolhida em passos -, e os dois tem de ver a MESMA ordem. Se
+    um deles usasse o padrao e o outro a excecao, o robo andaria um
+    percurso e executaria outro.
+    """
+    return ORDEM_POR_COR.get(cor, ORDEM_NA_COR)
 
 # A ORDEM ENTRE AS COLUNAS DO ROBO NAO MORA MAIS AQUI. Existia um
 # ORDEM_RETIRADA = (1, 3, 2), que mandava encher uma coluna de cada vez.

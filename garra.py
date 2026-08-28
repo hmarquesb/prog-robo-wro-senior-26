@@ -36,7 +36,7 @@ do batente ANTES de chamar zerar_garra, senao o zero sai alto e todas as
 descidas do programa junto.
 
 A GARRA NAO ESCOLHE A COLUNA DE ARMAZENAGEM. As 3 colunas sao fixas no
-topo do robo e quem poe a boca certa debaixo dela e o servo (servos.py).
+topo do robo e quem poe a boca certa debaixo dela e o servo (servos_selecionar.py).
 O arremesso e UM SO para os 12 blocos - o par (velocidade, tempo) fica no
 pegar_blocos.py, que e quem arremessa.
 
@@ -129,7 +129,7 @@ def mover_garra(velocidade, tempo_ms, parada=PARADA, esperar=True):
 
     O ARREMESSO E UM SO PARA OS 12 BLOCOS. Ele nao escolhe a coluna de
     armazenagem: as colunas sao fixas no topo do robo e quem poe a boca
-    certa debaixo da garra e o servo (servos.py).
+    certa debaixo da garra e o servo (servos_selecionar.py).
 
     Cuidado com tempos curtos: o run_time sobe do zero e volta ao zero
     DENTRO do tempo pedido. Para a garra chegar mesmo na velocidade

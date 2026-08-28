@@ -35,7 +35,7 @@ from pybricks.tools import wait
 import constantes as cte
 import movimento as m
 import linha as lin
-from setup import ev3, motor_A, motor_B, motor_C
+from setup import ev3, motor_A, motor_B, motor_C, motor_D
 
 
 def executar():
@@ -56,11 +56,11 @@ def executar():
     leitura_blocos_parte2.py comeca, com a garra em cima.
     """
 
-    m.girar_pivo(motor_C, -45,  v_max=900, acel=800, desacel=1600, kp=2.4, kd=7.6)
-    m.girar_pivo(motor_B, 45, v_max=900, acel=800, desacel=1600, kp=2.4, kd=7.6)
     
-
-    motor_A.run_angle(1000,430)#370
+    motor_A.run_angle(1000, 460, wait=False)
+   
+    m.girar_pivo(motor_C, -48,  v_max=900, acel=800, desacel=1600, kp=2.4, kd=7.6)
+    m.girar_pivo(motor_B, 48, v_max=900, acel=800, desacel=1600, kp=2.4, kd=7.6)
     
 
     lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.2, kd=13, v_max=1000, desacel=4000,
@@ -95,7 +95,7 @@ def executar():
                          tempo_ms=5000, ignorar_mm=580)
    
     m.girar_pivo(motor_C, 90,  v_max=900, acel=800, desacel=1600, kp=2.4, kd=7.33)
-    motor_A.run_angle(-700,370)#370#entrega o pote           
+    motor_A.run_angle(-1000, 370, wait=False)#370#entrega o pote           
     
     m.girar_pivo(motor_C, -180,  v_max=900, acel=800, desacel=1600, kp=3, kd=8.7) 
     
@@ -106,8 +106,10 @@ def executar():
     m.andar(60, v_max=700, v_min=200, acel=600, desacel=1800,
                     kp=2.5, kd=3.5)
 
-    m.girar_eixo(-90,v_max=800, desacel=1200, kp=2.5, kd=7)#fica reto ao mosaico
-
+    m.girar_eixo(-90,v_max=800, desacel=1200, kp=2.5, kd=7)
+    motor_A.run_angle(1000, 680)
+    lin.seguir_linha(parar_se=[lin.cruzamento()], kp=1.2, kd=13, v_max=900, desacel=1000,
+                         tempo_ms=5000, ignorar_mm=200)
 
 if __name__ == "__main__":
     executar()

@@ -63,7 +63,7 @@ import constantes as cte
 import movimento as m
 import linha as lin
 import garra as g
-import servos as sv
+import servos_selecionar as sv
 from setup import ev3, motor_A, motor_B, motor_C, motor_D
 from setup import sensor_esq, sensor_dir
 

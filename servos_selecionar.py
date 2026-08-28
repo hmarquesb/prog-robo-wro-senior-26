@@ -1,14 +1,19 @@
 #!/usr/bin/env pybricks-micropython
 """
-servos.py - Servo seletor das colunas de armazenagem
-====================================================
+servos_selecionar.py - Servo seletor das colunas de armazenagem
+==============================================================
+
+ANGULOS JA MEDIDOS NO ROBO: o passeio pelas 3 colunas (teste no fim deste
+arquivo) para na boca de cada uma. Os ANG_COLUNA_* do arduino_servos.ino
+sao os valores bons - nao sao mais placeholder. O outro servo, o que
+segura e libera os blocos, mora no servos_segurar.py.
 
 Hardware vem do setup.py, protocolo vem do constantes.py (secao 5).
 Mesmo papel do garra.py, so que para o servo: qualquer programa que
 precise escolher uma coluna importa daqui em vez de escrever bytes no
 barramento na mao.
 
-    import servos as sv
+    import servos_selecionar as sv
 
     sv.selecionar_coluna(2)    # poe o seletor na boca da coluna 2
     sv.repouso()               # tira o seletor do caminho
